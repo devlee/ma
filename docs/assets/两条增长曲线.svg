@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1280" height="800" viewBox="0 0 1280 800" xmlns="http://www.w3.org/2000/svg" font-family="WenQuanYi Micro Hei, Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">
+  <rect width="1280" height="800" fill="#FBF7F4"/>
+
+  <text x="60" y="56" font-size="30" font-weight="bold" fill="#3B1220">MA 增长的两条曲线:AZ 的启发 + mewmews 的启发</text>
+  <text x="60" y="88" font-size="16" fill="#8A6B75">第一曲线把现在的生意做成有复利的生意;第一曲线转出来的现金、基建和婚礼流量,就是第二曲线的启动资本</text>
+
+  <defs>
+    <marker id="ax" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 8 3.5, 0 7" fill="#9C8189"/>
+    </marker>
+    <marker id="sp" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 8 3.5, 0 7" fill="#1E6B4F"/>
+    </marker>
+  </defs>
+
+  <!-- axes -->
+  <line x1="100" y1="620" x2="1200" y2="620" stroke="#9C8189" stroke-width="2" marker-end="url(#ax)"/>
+  <line x1="100" y1="620" x2="100" y2="120" stroke="#9C8189" stroke-width="2" marker-end="url(#ax)"/>
+  <text x="1150" y="650" font-size="15" fill="#8A6B75">时间</text>
+  <text x="58" y="140" font-size="15" fill="#8A6B75">价值</text>
+
+  <!-- milestone vertical lines -->
+  <line x1="440" y1="620" x2="440" y2="170" stroke="#C9A6B2" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <rect x="360" y="132" width="160" height="30" rx="15" fill="#EFDDE4"/>
+  <text x="440" y="152" font-size="14" font-weight="bold" fill="#5E1B33" text-anchor="middle">三道闸门(放量点)</text>
+
+  <line x1="700" y1="620" x2="700" y2="170" stroke="#C9A6B2" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <rect x="600" y="132" width="200" height="30" rx="15" fill="#EFDDE4"/>
+  <text x="700" y="152" font-size="14" font-weight="bold" fill="#5E1B33" text-anchor="middle">中台建成(第二曲线启动)</text>
+
+  <!-- curve 1: missacc -->
+  <path d="M 120 590 Q 300 560 440 512 C 600 458, 820 408, 1160 318" fill="none" stroke="#5E1B33" stroke-width="4.5"/>
+  <text x="500" y="300" font-size="18" font-weight="bold" fill="#5E1B33">第一曲线 · missacc</text>
+  <text x="500" y="324" font-size="13.5" fill="#7A3D52">成熟女性的正式场合 · 信任经济</text>
+  <text x="500" y="344" font-size="13.5" fill="#7A3D52">demand harvesting + 分发飞轮 = 复利</text>
+
+  <!-- curve 1 phase annotations -->
+  <circle cx="180" cy="581" r="6" fill="#5E1B33"/>
+  <text x="150" y="672" font-size="13.5" fill="#5C4650">现在:装飞轮</text>
+  <text x="150" y="692" font-size="13" fill="#8A6B75">event date · 返图引擎</text>
+  <text x="150" y="710" font-size="13" fill="#8A6B75">第零环交叉销售 · 信任线</text>
+  <line x1="180" y1="587" x2="180" y2="655" stroke="#B78794" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <circle cx="440" cy="512" r="6" fill="#5E1B33"/>
+  <text x="384" y="672" font-size="13.5" fill="#5C4650">闸门后:放量</text>
+  <text x="384" y="692" font-size="13" fill="#8A6B75">预算 15–25% · 导航升级</text>
+  <text x="384" y="710" font-size="13" fill="#8A6B75">第二梯队季节品类</text>
+  <line x1="440" y1="518" x2="440" y2="655" stroke="#B78794" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- curve 2: second brand -->
+  <path d="M 710 585 C 820 550, 930 460, 1010 380 C 1075 314, 1125 240, 1160 178" fill="none" stroke="#A94F6B" stroke-width="4" stroke-dasharray="12 8"/>
+  <text x="790" y="168" font-size="18" font-weight="bold" fill="#A94F6B">第二曲线 · 身份品牌(期权)</text>
+  <text x="790" y="192" font-size="13.5" fill="#B06A80">Merabi 生态位:重工 statement · 轻奢价位</text>
+  <text x="790" y="212" font-size="13.5" fill="#B06A80">demand creation · 从"新娘的其他造型"切入</text>
+
+  <circle cx="710" cy="585" r="6" fill="#A94F6B"/>
+  <text x="650" y="672" font-size="13.5" fill="#5C4650">期权行权:自建或收购</text>
+  <text x="650" y="692" font-size="13" fill="#8A6B75">外聘品味主理人 · 独立团队</text>
+  <text x="650" y="710" font-size="13" fill="#8A6B75">耐心资本 · 封顶预算</text>
+  <line x1="710" y1="591" x2="710" y2="655" stroke="#B78794" stroke-width="1" stroke-dasharray="3 3"/>
+
+  <!-- LWD test feed arrow -->
+  <path d="M 330 545 C 440 600, 560 620, 690 596" fill="none" stroke="#1E6B4F" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#sp)"/>
+  <rect x="330" y="560" width="250" height="52" rx="8" fill="#E8F4EE" stroke="#BDDECE"/>
+  <text x="345" y="582" font-size="13.5" font-weight="bold" fill="#1E6B4F">LWD / bachelorette 站内测试(现在)</text>
+  <text x="345" y="602" font-size="12.5" fill="#2E5C4A">用现金牛流量为第二曲线免费探路</text>
+
+  <!-- connectors band -->
+  <text x="60" y="748" font-size="16" font-weight="bold" fill="#3B1220">两条曲线共用的三个连接件:</text>
+  <rect x="290" y="726" width="280" height="36" rx="18" fill="#5E1B33"/>
+  <text x="430" y="750" font-size="14.5" fill="#FFFFFF" text-anchor="middle">婚礼场景 —— 两边的收银台</text>
+  <rect x="590" y="726" width="280" height="36" rx="18" fill="#7B2E49"/>
+  <text x="730" y="750" font-size="14.5" fill="#FFFFFF" text-anchor="middle">重工供应链 —— 两边的产能</text>
+  <rect x="890" y="726" width="345" height="36" rx="18" fill="#A94F6B"/>
+  <text x="1062" y="750" font-size="14" fill="#FFFFFF" text-anchor="middle">中台 —— 第一曲线的副产品 · 第二曲线的地基</text>
+</svg>
