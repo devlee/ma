@@ -150,21 +150,22 @@ add_text(s, Inches(0.75), Inches(0.42), Inches(11.8), Inches(0.7),
 add_text(s, Inches(0.75), Inches(1.2), Inches(11.8), Inches(0.5),
          [("培育钻不是仿钻——它是实验室里\u201c长\u201d出来的真钻石，连 IGI / GIA 都为它出具证书", 15.5, False, GOLD_LIGHT)])
 
-# 两颗钻石对比卡
-cards = [
-    ("天然钻石", "地下 10 亿年形成", NAVY_LIGHT),
-    ("培育钻石", "实验室 2~4 周培育", RGBColor(0x8A, 0x6D, 0x2F)),
-]
-for i, (t, d, c) in enumerate(cards):
-    x = Inches(0.95) + i * Inches(3.1)
-    yc = Inches(1.95)
-    add_rect(s, x, yc, Inches(2.8), Inches(2.1), fill=c, line=GOLD, line_w=Pt(1),
-             shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.08)
-    diamond_mark(s, x + Inches(1.4), yc + Inches(0.62), Inches(0.55), WHITE)
-    add_text(s, x + Inches(0.15), yc + Inches(1.08), Inches(2.5), Inches(0.5),
-             [(t, 17, True, WHITE)], align=PP_ALIGN.CENTER)
-    add_text(s, x + Inches(0.15), yc + Inches(1.56), Inches(2.5), Inches(0.45),
-             [(d, 12, False, GOLD_LIGHT)], align=PP_ALIGN.CENTER)
+# 两颗钻石实拍对比图（同一背景同一张图；替换 ppt/assets/rings_comparison.png 后重跑脚本即可换图）
+import os
+IMG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "rings_comparison.png")
+img_x, img_y, img_w = Inches(0.95), Inches(1.85), Inches(4.0)
+add_rect(s, img_x - Pt(3), img_y - Pt(3), img_w + Pt(6), img_w + Pt(6), fill=GOLD)
+s.shapes.add_picture(IMG, img_x, img_y, width=img_w, height=img_w)
+# 左右 A/B 标签
+for i, tag in enumerate(["A", "B"]):
+    tx = img_x + Inches(0.55) + i * Inches(2.35)
+    add_rect(s, tx, img_y + img_w - Inches(0.55), Inches(0.55), Inches(0.4), fill=NAVY,
+             line=GOLD, line_w=Pt(1), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.5)
+    add_text(s, tx, img_y + img_w - Inches(0.55), Inches(0.55), Inches(0.4),
+             [(tag, 14, True, GOLD)], align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+add_text(s, img_x, img_y + img_w + Inches(0.1), img_w, Inches(0.4),
+         [("其中一颗是培育钻 —— 您能分辨吗？", 14, True, GOLD_LIGHT)],
+         align=PP_ALIGN.CENTER, space_after=0)
 
 # 右侧：三行对比
 comp = [
@@ -172,28 +173,29 @@ comp = [
     ("价格", "培育钻仅为天然钻的 1/3 ~ 1/5：同样预算，克拉数翻倍", GOLD, "1/3~1/5"),
     ("供给能力", "天然钻依赖矿产开采、储量有限；培育钻可规模化量产、成本持续下降", RED, "无上限"),
 ]
-cy = Inches(1.95)
+cx = Inches(5.5)
+cw = Inches(7.2)
+cy = Inches(1.85)
 for t, d, c, tag in comp:
-    add_rect(s, Inches(7.35), cy, Inches(5.35), Inches(0.62), fill=NAVY_LIGHT,
+    add_rect(s, cx, cy, cw, Inches(0.62), fill=NAVY_LIGHT,
              shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.18)
-    add_rect(s, Inches(7.35), cy, Inches(1.35), Inches(0.62), fill=c,
+    add_rect(s, cx, cy, Inches(1.35), Inches(0.62), fill=c,
              shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.18)
-    add_text(s, Inches(7.42), cy, Inches(1.22), Inches(0.62), [(tag, 13.5, True, WHITE)],
+    add_text(s, cx + Inches(0.07), cy, Inches(1.22), Inches(0.62), [(tag, 13.5, True, WHITE)],
              align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
-    add_text(s, Inches(8.85), cy, Inches(3.8), Inches(0.62), [(t, 14.5, True, WHITE)],
+    add_text(s, cx + Inches(1.5), cy, cw - Inches(1.6), Inches(0.62), [(t, 14.5, True, WHITE)],
              anchor=MSO_ANCHOR.MIDDLE, space_after=0)
-    add_text(s, Inches(7.35), cy + Inches(0.66), Inches(5.35), Inches(0.62),
+    add_text(s, cx, cy + Inches(0.66), cw, Inches(0.55),
              [(d, 11.5, False, RGBColor(0xB9, 0xC5, 0xD4))], space_after=0, line_spacing=1.08)
-    cy += Inches(1.42)
+    cy += Inches(1.32)
 
-# 市场结论条
-add_rect(s, Inches(0.95), Inches(4.45), Inches(5.35), Inches(1.75), fill=NAVY_LIGHT,
-         line=GOLD, line_w=Pt(1), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
-add_text(s, Inches(1.25), Inches(4.68), Inches(4.8), Inches(0.5),
-         [("美国婚戒市场正在发生什么？", 14.5, True, GOLD)])
-add_text(s, Inches(1.25), Inches(5.18), Inches(4.8), Inches(0.95),
-         [("培育钻在美国订婚戒中的渗透率逐年快速提升，年轻一代把\u201c更大克拉 + 更好价格 + 环保\u201d当作新常识",
-           12.5, False, WHITE)], line_spacing=1.15)
+# 市场趋势一行
+add_rect(s, cx, Inches(5.82), cw, Inches(0.52), fill=NAVY_LIGHT, line=GOLD, line_w=Pt(1),
+         shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.25)
+add_text(s, cx + Inches(0.25), Inches(5.82), cw - Inches(0.5), Inches(0.52),
+         [[("美国市场信号：", 12.5, True, GOLD),
+           ("培育钻在订婚戒中的渗透率逐年快速提升——年轻一代已用钱包投票", 12.5, False, WHITE)]],
+         anchor=MSO_ANCHOR.MIDDLE, space_after=0)
 
 add_rect(s, Inches(0.95), Inches(6.42), Inches(11.75), Inches(0.82), fill=GOLD,
          shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.16)
