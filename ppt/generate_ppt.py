@@ -141,10 +141,71 @@ add_text(s, Inches(1.5), Inches(5.55), Inches(10.33), Inches(0.5),
          align=PP_ALIGN.CENTER)
 
 # ================================================================
-# 第 2 页 目录
+# 第 2 页 开场钩子：两颗钻石的故事
+# ================================================================
+s = slide_base(NAVY)
+add_rect(s, 0, 0, SW, Pt(4), fill=GOLD)
+add_text(s, Inches(0.75), Inches(0.42), Inches(11.8), Inches(0.7),
+         [("开场：这两颗钻石，哪颗 30 万，哪颗 6 万？", 29, True, WHITE)])
+add_text(s, Inches(0.75), Inches(1.2), Inches(11.8), Inches(0.5),
+         [("培育钻不是仿钻——它是实验室里\u201c长\u201d出来的真钻石，连 IGI / GIA 都为它出具证书", 15.5, False, GOLD_LIGHT)])
+
+# 两颗钻石对比卡
+cards = [
+    ("天然钻石", "地下 10 亿年形成", NAVY_LIGHT),
+    ("培育钻石", "实验室 2~4 周培育", RGBColor(0x8A, 0x6D, 0x2F)),
+]
+for i, (t, d, c) in enumerate(cards):
+    x = Inches(0.95) + i * Inches(3.1)
+    yc = Inches(1.95)
+    add_rect(s, x, yc, Inches(2.8), Inches(2.1), fill=c, line=GOLD, line_w=Pt(1),
+             shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.08)
+    diamond_mark(s, x + Inches(1.4), yc + Inches(0.62), Inches(0.55), WHITE)
+    add_text(s, x + Inches(0.15), yc + Inches(1.08), Inches(2.5), Inches(0.5),
+             [(t, 17, True, WHITE)], align=PP_ALIGN.CENTER)
+    add_text(s, x + Inches(0.15), yc + Inches(1.56), Inches(2.5), Inches(0.45),
+             [(d, 12, False, GOLD_LIGHT)], align=PP_ALIGN.CENTER)
+
+# 右侧：三行对比
+comp = [
+    ("视觉 · 化学结构 · 硬度", "完全一致：同为碳晶体、莫氏硬度 10、同等火彩，肉眼与常规仪器无法区分", GREEN, "相同"),
+    ("价格", "培育钻仅为天然钻的 1/3 ~ 1/5：同样预算，克拉数翻倍", GOLD, "1/3~1/5"),
+    ("供给能力", "天然钻依赖矿产开采、储量有限；培育钻可规模化量产、成本持续下降", RED, "无上限"),
+]
+cy = Inches(1.95)
+for t, d, c, tag in comp:
+    add_rect(s, Inches(7.35), cy, Inches(5.35), Inches(0.62), fill=NAVY_LIGHT,
+             shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.18)
+    add_rect(s, Inches(7.35), cy, Inches(1.35), Inches(0.62), fill=c,
+             shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.18)
+    add_text(s, Inches(7.42), cy, Inches(1.22), Inches(0.62), [(tag, 13.5, True, WHITE)],
+             align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+    add_text(s, Inches(8.85), cy, Inches(3.8), Inches(0.62), [(t, 14.5, True, WHITE)],
+             anchor=MSO_ANCHOR.MIDDLE, space_after=0)
+    add_text(s, Inches(7.35), cy + Inches(0.66), Inches(5.35), Inches(0.62),
+             [(d, 11.5, False, RGBColor(0xB9, 0xC5, 0xD4))], space_after=0, line_spacing=1.08)
+    cy += Inches(1.42)
+
+# 市场结论条
+add_rect(s, Inches(0.95), Inches(4.45), Inches(5.35), Inches(1.75), fill=NAVY_LIGHT,
+         line=GOLD, line_w=Pt(1), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.1)
+add_text(s, Inches(1.25), Inches(4.68), Inches(4.8), Inches(0.5),
+         [("美国婚戒市场正在发生什么？", 14.5, True, GOLD)])
+add_text(s, Inches(1.25), Inches(5.18), Inches(4.8), Inches(0.95),
+         [("培育钻在美国订婚戒中的渗透率逐年快速提升，年轻一代把\u201c更大克拉 + 更好价格 + 环保\u201d当作新常识",
+           12.5, False, WHITE)], line_spacing=1.15)
+
+add_rect(s, Inches(0.95), Inches(6.42), Inches(11.75), Inches(0.82), fill=GOLD,
+         shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.16)
+add_text(s, Inches(1.25), Inches(6.42), Inches(11.2), Inches(0.82),
+         [("同样的钻石 · 三分之一的价格 · 无上限的供给 —— 供给革命遇上婚戒刚需，新品牌的窗口打开了",
+           16.5, True, NAVY)], anchor=MSO_ANCHOR.MIDDLE, align=PP_ALIGN.CENTER)
+
+# ================================================================
+# 第 3 页 目录
 # ================================================================
 s = slide_base()
-header(s, "目录", "对齐公司要求的六大要素", "02")
+header(s, "目录", "对齐公司要求的六大要素", "03")
 toc = [
     ("01", "项目介绍、产品及服务", "美国培育钻婚戒赛道 × 个性化定制"),
     ("02", "商业模式及市场策略", "五位一体模式 · 流媒体机会点 · 打法"),
@@ -170,7 +231,7 @@ for i, (n, t, d) in enumerate(toc):
 # 第 3 页 项目介绍
 # ================================================================
 s = slide_base()
-header(s, "01 · 项目介绍：产品及服务", "在美国婚戒市场，用培育钻 + 定制服务切一块确定性增长的蛋糕", "03")
+header(s, "01 · 项目介绍：产品及服务", "在美国婚戒市场，用培育钻 + 定制服务切一块确定性增长的蛋糕", "04")
 
 # 左侧：赛道
 add_text(s, Inches(0.75), Inches(1.7), Inches(5.9), Inches(0.5),
@@ -210,7 +271,7 @@ for t, d in prods:
 # 第 4 页 商业模式
 # ================================================================
 s = slide_base()
-header(s, "02 · 商业模式：五位一体 = 克拉先生", "全链路自控：供应链 → 设计 → 制造 → 服务 → 销售", "04")
+header(s, "02 · 商业模式：五位一体 = 克拉先生", "全链路自控：供应链 → 设计 → 制造 → 服务 → 销售", "05")
 
 # 公式条
 items = ["印度一手\n钻石源头", "Tiffany 同源\n金工大师", "珠宝 AI\n设计模型", "个性化\n定制服务", "独立站\n销售"]
@@ -255,7 +316,7 @@ for i, (t, d, c) in enumerate(lights):
 # 第 5 页 市场分析：机会点
 # ================================================================
 s = slide_base()
-header(s, "02 · 市场分析：竞品的流量盲区，就是我们的机会点", "头部品牌重搜索与门店，社媒信息流投放渗透率极低", "05")
+header(s, "02 · 市场分析：竞品的流量盲区，就是我们的机会点", "头部品牌重搜索与门店，社媒信息流投放渗透率极低", "06")
 
 # 对比表
 tx, ty = Inches(0.62), Inches(1.78)
@@ -298,7 +359,7 @@ add_text(s, Inches(1.0), Inches(5.7), Inches(11.4), Inches(0.95),
 # 第 6 页 市场策略
 # ================================================================
 s = slide_base()
-header(s, "02 · 市场策略：素材驱动的社媒打法 + 高客单信任体系", "把流量优势转化为高客单订单", "06")
+header(s, "02 · 市场策略：素材驱动的社媒打法 + 高客单信任体系", "把流量优势转化为高客单订单", "07")
 
 # 漏斗（左）
 funnel = [
@@ -338,7 +399,7 @@ add_text(s, Inches(1.1), Inches(6.05), Inches(11.3), Inches(0.78),
 # 第 7 页 财务预算
 # ================================================================
 s = slide_base()
-header(s, "03 · 3 年独立核算：投资与收益财务预算", "总投入 160 万（3 年储备） · 目标利润率 15%~20%（下表为测算示例，口径可复核）", "07")
+header(s, "03 · 3 年独立核算：投资与收益财务预算", "总投入 160 万（3 年储备） · 目标利润率 15%~20%（下表为测算示例，口径可复核）", "08")
 
 tx, ty = Inches(0.62), Inches(1.85)
 cols = [Inches(3.3), Inches(2.9), Inches(2.9), Inches(2.98)]
@@ -381,7 +442,7 @@ for t, d in notes:
 # 第 8 页 投资额度与出资结构
 # ================================================================
 s = slide_base()
-header(s, "04 · 项目投资总额度 · 带头人及团队出资额度", "跟投绑定：我们自己先押上真金白银", "08")
+header(s, "04 · 项目投资总额度 · 带头人及团队出资额度", "跟投绑定：我们自己先押上真金白银", "09")
 
 # 左：总额度大数字
 add_rect(s, Inches(0.75), Inches(1.85), Inches(4.7), Inches(4.7), fill=NAVY,
@@ -425,7 +486,7 @@ add_text(s, Inches(6.0), uy + Inches(0.1), Inches(6.6), Inches(0.5),
 # 第 9 页 团队
 # ================================================================
 s = slide_base()
-header(s, "05 · 团队成员及职责介绍", "小而精的闭环作战单元：每个关键环节都有被验证过的人", "09")
+header(s, "05 · 团队成员及职责介绍", "小而精的闭环作战单元：每个关键环节都有被验证过的人", "10")
 
 teams = [
     ("总经理 / 流量操盘", "____（本人）", "战略与经营 · 投放体系搭建 · 广告账户操盘 · ROI 负责"),
@@ -505,7 +566,7 @@ add_text(s, Inches(0.95), Inches(6.85), Inches(11.5), Inches(0.45),
 # 第 11 页 总结
 # ================================================================
 s = slide_base()
-header(s, "总结：确定性的模型，配上被验证过的人", None, "11")
+header(s, "总结：确定性的模型，配上被验证过的人", None, "12")
 
 add_rect(s, Inches(0.75), Inches(1.75), Inches(5.85), Inches(3.3), fill=WHITE,
          line=LIGHTLINE, line_w=Pt(1), shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.06)
