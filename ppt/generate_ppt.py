@@ -401,19 +401,20 @@ add_text(s, Inches(1.1), Inches(6.05), Inches(11.3), Inches(0.78),
 # 第 7 页 财务预算
 # ================================================================
 s = slide_base()
-header(s, "03 · 3 年独立核算：投资与收益财务预算", "总投入 160 万（3 年储备） · 目标利润率 15%~20%（下表为测算示例，口径可复核）", "08")
+header(s, "03 · 3 年独立核算：投资与收益财务预算", "总投入 160 万（3 年储备） · 净利率 15%~20% · 客单价按 $2,000（约 1.4 万元）测算，示例口径可复核", "08")
 
-tx, ty = Inches(0.62), Inches(1.85)
+tx, ty = Inches(0.62), Inches(1.72)
 cols = [Inches(3.3), Inches(2.9), Inches(2.9), Inches(2.98)]
 frows = [
     ("科目（万元人民币）", "第 1 年 · 验证期", "第 2 年 · 放量期", "第 3 年 · 规模期"),
     ("GMV（销售额）", "500", "1,500", "3,600"),
+    ("订单量（月均）", "约 360 单（月均 30）", "约 1,070 单（月均 90）", "约 2,570 单（月均 215）"),
     ("广告及营销投放（40%）", "200", "600", "1,440"),
     ("货品及履约成本（30%）", "150", "450", "1,080"),
     ("团队及运营费用（8%）", "40", "120", "288"),
     ("经营利润（约 22%）", "110", "330", "792"),
 ]
-row_h = Inches(0.62)
+row_h = Inches(0.56)
 for r, row in enumerate(frows):
     x = tx
     for c, cell in enumerate(row):
@@ -423,22 +424,22 @@ for r, row in enumerate(frows):
         add_rect(s, x, ty + r * row_h, cols[c], row_h, fill=fill, line=LIGHTLINE, line_w=Pt(0.75))
         color = WHITE if is_head else (NAVY if is_profit else DARK)
         add_text(s, x + Inches(0.15), ty + r * row_h, cols[c] - Inches(0.3), row_h,
-                 [(cell, 13.5, is_head or is_profit or c == 0, color)],
+                 [(cell, 13, is_head or is_profit or c == 0, color)],
                  align=PP_ALIGN.LEFT if c == 0 else PP_ALIGN.CENTER,
                  anchor=MSO_ANCHOR.MIDDLE, space_after=0)
         x += cols[c]
 
 notes = [
+    ("单量口径", "第一年月均约 30 单即达标——对专业投放团队，这是保守的起步目标，可拆到每条广告线复核"),
     ("成本结构", "广告 40% + 货品 30% + 团队运营 8%，经营利润率约 22%；扣除支付手续费、物流保险等杂费后净利率 15%~20%"),
     ("零库存模型", "一件一做，货品成本随订单发生，160 万主要投向流量与团队，资金效率高"),
-    ("长期愿景", "利润来自设计与定制服务溢价；跑通单站模型后复制放大，3~5 年冲击年营收 5,000 万美金量级"),
 ]
-ny = Inches(5.75)
+ny = Inches(5.78)
 for t, d in notes:
-    diamond_mark(s, Inches(0.82), ny + Inches(0.14), Inches(0.14))
-    add_text(s, Inches(1.05), ny - Inches(0.02), Inches(11.7), Inches(0.42),
-             [[(t + "：", 13.5, True, NAVY), (d, 13, False, GREY)]], space_after=0)
-    ny += Inches(0.42)
+    diamond_mark(s, Inches(0.82), ny + Inches(0.13), Inches(0.14))
+    add_text(s, Inches(1.05), ny - Inches(0.02), Inches(11.7), Inches(0.4),
+             [[(t + "：", 12.5, True, NAVY), (d, 12, False, GREY)]], space_after=0)
+    ny += Inches(0.4)
 
 # ================================================================
 # 第 8 页 投资额度与出资结构
@@ -598,8 +599,8 @@ add_rect(s, Inches(0.75), Inches(5.45), Inches(11.95), Inches(1.25), fill=NAVY,
          shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.12)
 add_text(s, Inches(1.1), Inches(5.45), Inches(11.3), Inches(1.25),
          [[("目标：", 18, True, GOLD),
-           ("打造年收益 5,000 万美金量级的美国培育钻婚戒独立站。下有零库存保底，上有流量红利想象力。",
-            17, True, WHITE)]],
+           ("第 1~3 年跑通单站模型，第 4~5 年复制多站点、多市场，冲击年收益 5,000 万美金量级。下有零库存保底，上有流量红利想象力。",
+            16, True, WHITE)]],
          anchor=MSO_ANCHOR.MIDDLE, line_spacing=1.15)
 
 # ================================================================
