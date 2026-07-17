@@ -492,22 +492,32 @@ s = slide_base()
 header(s, "05 · 团队成员及职责介绍", "小而精的闭环作战单元：每个关键环节都有被验证过的人", "10")
 
 teams = [
-    ("总经理 / 流量操盘", "____（本人）", "战略与经营 · 投放体系搭建 · 广告账户操盘 · ROI 负责"),
-    ("素材创作负责人", "____", "拍摄与剪辑生态 · 素材测试迭代 · KOL 内容协同"),
-    ("设计与供应链负责人", "____", "AI 设计模型 · 印度源头选钻 · 金工大师排单与品控"),
-    ("定制顾问 / 客服负责人", "____", "1v1 定制服务 · 询单转化 · 售后与复购运营"),
+    ("总经理 / 流量操盘", "____（本人）",
+     "六年打满整个业务链：从客服到投手到项目负责人，累计操盘 1,000 万美金投放，破站点 GMV 纪录。",
+     "战略与经营 · 投放体系 · 广告操盘 · ROI 负责"),
+    ("素材创作负责人", "____",
+     "__ 年跨境素材实战，从 0 搭建 __ 个站点的拍摄剪辑团队，单条爆款素材带来超 __ 万美金 GMV。",
+     "拍摄与剪辑生态 · 素材测试迭代 · KOL 内容协同"),
+    ("设计与供应链负责人", "____",
+     "深耕珠宝供应链 __ 年，直连印度源头钻石商与同源体系金工工坊，管理过年出货 __ 件的定制产线。",
+     "AI 设计模型 · 印度源头选钻 · 金工排单与品控"),
+    ("定制顾问 / 客服负责人", "____",
+     "一线客服成长起来的转化专家，__ 年高客单询单经验，历史询单转化率 __%、客诉率低于 __%。",
+     "1v1 定制服务 · 询单转化 · 售后与复购运营"),
 ]
-for i, (role, name, duty) in enumerate(teams):
+for i, (role, name, intro, duty) in enumerate(teams):
     col, row = i % 2, i // 2
     x = Inches(0.75) + col * Inches(6.15)
     y = Inches(1.9) + row * Inches(2.3)
     add_rect(s, x, y, Inches(5.85), Inches(2.05), fill=WHITE, line=LIGHTLINE, line_w=Pt(1),
              shape=MSO_SHAPE.ROUNDED_RECTANGLE, radius=0.07)
     add_rect(s, x, y, Inches(0.09), Inches(2.05), fill=GOLD if i == 0 else NAVY)
-    add_text(s, x + Inches(0.35), y + Inches(0.22), Inches(5.2), Inches(0.5),
-             [[(role, 17, True, NAVY), ("   " + name, 14, True, GOLD)]])
-    add_text(s, x + Inches(0.35), y + Inches(0.85), Inches(5.2), Inches(1.05),
-             [(duty, 13, False, GREY)], line_spacing=1.2)
+    add_text(s, x + Inches(0.35), y + Inches(0.18), Inches(5.2), Inches(0.45),
+             [[(role, 16, True, NAVY), ("   " + name, 13.5, True, GOLD)]])
+    add_text(s, x + Inches(0.35), y + Inches(0.68), Inches(5.15), Inches(0.85),
+             [(intro, 11.5, False, DARK)], line_spacing=1.15)
+    add_text(s, x + Inches(0.35), y + Inches(1.6), Inches(5.15), Inches(0.4),
+             [(duty, 10.5, False, GREY)], space_after=0)
 
 add_text(s, Inches(0.75), Inches(6.45), Inches(12, ), Inches(0.4),
          [("注：成员姓名与出资额度上台前补充；母公司 KOL 平台与中后台（财务/法务/IT）共享支持。", 11.5, False, GREY)])
