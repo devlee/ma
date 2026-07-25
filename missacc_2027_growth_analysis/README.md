@@ -9,7 +9,9 @@
 | `missacc_2027_march_growth_targets.csv` | v1 | 初版月度目标（伴娘+50%、Prom+80%，按市场份额天花板分配） |
 | `missacc_2027_march_daily_targets_v2.csv` | v2 | 日均口径；伴娘调至翻倍(+100%)、Prom 降至 +40% |
 | `missacc_2027_march_daily_targets_v3_marginal_yield.csv` | v3 | 按"新款边际产出"原则重定：MOB+50%、伴娘+70%、Bride+35%（慢钱）、Prom+30% |
-| `missacc_2027_march_daily_targets_v4_final.csv` | **v4 最终版** | 依据 3 月广告 ROAS 与 H1 真实同比微调：Evening 75%→65%、伴娘 70%→80%；含各品类今年3月实际同比与 ROAS 参照列 |
+| `missacc_2027_march_daily_targets_v4_final.csv` | **v4 最终版(+50%)** | 依据 3 月广告 ROAS 与 H1 真实同比微调：Evening 75%→65%、伴娘 70%→80%；含各品类今年3月实际同比与 ROAS 参照列 |
+| `missacc_2027_march_daily_targets_v60pct.csv` | +60% 版本 | 整体 +61.4%；加码优先给 MOB/伴娘/Cocktail，Prom 仅 +35% |
+| `missacc_2027_march_daily_targets_v70pct.csv` | +70% 版本 | 整体 +71.2%；≈维持 2026H1 当前增速不减速，风险最高 |
 | `missacc_new_product_cohort_stats_202603.xlsx` | - | 新款分层统计（2026-03 单月，队列粒度 0-3/3-6/6-12/>12月）+ 字段口径说明 |
 | `missacc_new_product_cohort_stats_2026H1.xlsx` | **最新** | 滚动版新款分层统计（2026年1-6月全量）+ MOB 饱和预警线基线 + 字段口径说明，后续按月追加 |
 
