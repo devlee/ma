@@ -14,6 +14,9 @@
 | `missacc_2027_march_daily_targets_v70pct.csv` | +70% 版本 | 整体 +71.2%；≈维持 2026H1 当前增速不减速，风险最高 |
 | `missacc_new_product_cohort_stats_202603.xlsx` | - | 新款分层统计（2026-03 单月，队列粒度 0-3/3-6/6-12/>12月）+ 字段口径说明 |
 | `missacc_new_product_cohort_stats_2026H1.xlsx` | **最新** | 滚动版新款分层统计（2026年1-6月全量）+ MOB 饱和预警线基线 + 字段口径说明，后续按月追加 |
+| `missacc_ramp_curves_by_category.csv` / `ramp_curves_by_category.png` | - | 各品类新款爬坡曲线（上架后第N月单SPU收入）表格与图 |
+| `missacc_launch_plan_202608_202703.md` / `.csv` | **执行文档** | 上新规划（2026年8月-2027年3月），v50/v60 双版本月度网格 + 测算模型 + 风险与检查点 |
+| `missacc_category_opportunity_analysis.md` | **执行文档** | 品类机会分析：机会评分、进攻/顺势/蓄水/修复定位、上新与素材资源清单（不含广告测算） |
 
 ## v4 最终目标摘要（日均，2026年3月按31天）
 
