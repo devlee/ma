@@ -281,6 +281,7 @@ rules = [
     ("直接定款候选", "甘特表\"直接定款建议\"列(红色)标注了选款/定款周与其他大批次选款撞期的批次(FG各批、JBD 12月批、WD 8月批), 执行时若当周人力排不开, 由负责人直接定款, 整体可再压缩1周。"),
     ("上架节奏", "每周上新: 月量≥40款的品类按月内各周均摊; 21-39款分2周; ≤20款集中1周上架(各品类错开周次, 平衡周上架总量)。"),
     ("选款产能", "选款池按定款量的1.5倍备选(可调); 人均选款产能: 大批次(≥40款)一人每周40款, 小批次一人每周20款。详见\"产能与作图拆解\"表。"),
+    ("作图产能", "单个制作: 1名设计师1款/天, 即5款/人·周, 共10人, 满投入上限50款/周(设计师另有其他需求, 有调整空间); 批量制作: 约20款/天, 满投入上限100款/周(批量线还承担在架款图片迭代, 可调整)。来图定制款按批量线处理。批次作图量按其作图周期(2-3周)均摊计算每周负荷, 详见\"作图负荷vs产能\"表。排期保守地要求每批作图在首个上架周前全部完成(留缓冲), 因此每月月初周作图负荷很低; 高负荷周(占用≥80%)可把当月靠后周次上架款的作图顺延到月初空档周削峰。"),
     ("春节安排", "假设 2027/2/5-2/18 放假14天(以公司通知为准), 2/8周与2/15周不排任何工作。2月120款全部于 1/29(节前)完成作图, 分 2/1周(65款)与 2/22周(55款)两次上架。"),
     ("2027-03 批次提示", "受春节影响, 3月批次(量待定)中妈妈装需提前: 1/18-1/29 完成选款打分定款, 节前完成SPU并启动作图, 节后 2/22周 收尾作图, 3月第1周正常上架; 常规品类节后 2/22周 立即选款(或直接定款); 婚纱可优先用来图定制款过渡。"),
     ("8月追赶(当前进度)", "BD: 选款打分已完成→本周定款; ED: 已定款→本周SPU+作图; MBD: 作图中→8/10周起滚动上架; WD: 未启动→本周直接定款30款(来图定制另覆盖20款), 8/24周起上架, 必要时部分顺延至9月第1周。8月上架量后置明显(8/24、8/31两周合计145款), 属追赶期特殊情况。"),
@@ -512,9 +513,108 @@ for j, wd_ in enumerate(widths2):
     ws.column_dimensions[get_column_letter(1 + j)].width = wd_
 ws.freeze_panes = "A2"
 
+# ===== Sheet 7: 作图负荷 vs 产能 =====
+# 产能假设: 单个 1款/设计师/天 → 5款/人·周, 10人 → 上限50款/周;
+#           批量 20款/天 → 上限100款/周(满投入, 实际还需承担在架款图片迭代)
+DESIGNERS = 10
+SINGLE_PER_DESIGNER_WEEK = 5
+SINGLE_CAP = DESIGNERS * SINGLE_PER_DESIGNER_WEEK
+BATCH_PER_DAY = 20
+BATCH_CAP = BATCH_PER_DAY * 5
+
+def art_load(week):
+    """返回 (单个需求, 批量需求, 批次标签列表)"""
+    single = batch = 0.0
+    tags = []
+    for b in BATCHES:
+        if week not in b["art"]:
+            continue
+        per_week = b["qty"] / len(b["art"])
+        if b["sub"] == "来图定制":
+            batch += per_week
+        else:
+            single += per_week * SINGLE_RATIO[b["cat"]]
+            batch += per_week * (1 - SINGLE_RATIO[b["cat"]])
+        sub = f"-{b['sub']}" if b["sub"] else ""
+        tags.append(f"{CAT_NAMES[b['cat']].split(' ')[0]}{b['month'][2:].replace('-', '')}批{sub}")
+    return single, batch, tags
+
+RED = PatternFill("solid", fgColor="FF9999")
+YELLOW = PatternFill("solid", fgColor="FFE699")
+GREEN = PatternFill("solid", fgColor="C6EFCE")
+
+ws = wb.create_sheet("作图负荷vs产能")
+cols = ["周次", "在制批次", "单个需求(款)", f"需设计师(人, {SINGLE_PER_DESIGNER_WEEK}款/人·周)",
+        f"设计师占用率(共{DESIGNERS}人)", "批量需求(款)", f"批量占用(天, {BATCH_PER_DAY}款/天)",
+        "批量占用率(按5天)", "批量剩余产能(款, 可用于在架款迭代)", "提示"]
+for j, h in enumerate(cols):
+    style_header(ws.cell(row=1, column=1 + j, value=h))
+
+def load_fill(cell, ratio):
+    if ratio >= 1.0:
+        cell.fill = RED
+    elif ratio >= 0.8:
+        cell.fill = YELLOW
+    else:
+        cell.fill = GREEN
+
+r = 2
+for w in WEEKS:
+    if w in HOLIDAY_WEEKS:
+        style_cell(ws.cell(row=r, column=1, value=wk_label(w).replace("\n", " ")), LEFT, BOLD)
+        cc = ws.cell(row=r, column=2, value="春节假期")
+        style_cell(cc, CENTER, BOLD)
+        for j in range(1, len(cols) + 1):
+            c2 = ws.cell(row=r, column=j)
+            style_cell(c2, LEFT if j in (1, 2, 10) else CENTER)
+            c2.fill = STAGE_FILL["假期"]
+        r += 1
+        continue
+    single, batch, tags = art_load(w)
+    if not tags:
+        continue
+    designers_needed = single / SINGLE_PER_DESIGNER_WEEK
+    s_ratio = single / SINGLE_CAP
+    batch_days = batch / BATCH_PER_DAY
+    b_ratio = batch / BATCH_CAP
+    hints = []
+    if s_ratio >= 1.0:
+        hints.append("单个作图超产能!需加人或提前启动")
+    elif s_ratio >= 0.8:
+        hints.append("单个作图高负荷: 需保证设计师投入, 排开其他需求")
+    if b_ratio >= 1.0:
+        hints.append("批量作图超产能!")
+    elif b_ratio >= 0.8:
+        hints.append("批量线高负荷: 在架款迭代需让路")
+    vals = [wk_label(w).replace("\n", " "), "、".join(tags),
+            round(single, 1), round(designers_needed, 1), f"{s_ratio:.0%}",
+            round(batch, 1), round(batch_days, 1), f"{b_ratio:.0%}",
+            round(BATCH_CAP - batch, 1) if BATCH_CAP > batch else 0,
+            "; ".join(hints)]
+    for j, v in enumerate(vals):
+        cc = ws.cell(row=r, column=1 + j, value=v)
+        style_cell(cc, LEFT if j in (0, 1, 9) else CENTER, BOLD if j == 0 else BASE_FONT)
+    load_fill(ws.cell(row=r, column=5), s_ratio)
+    load_fill(ws.cell(row=r, column=8), b_ratio)
+    ws.row_dimensions[r].height = 28
+    r += 1
+widths3 = [16, 52, 12, 16, 14, 12, 14, 12, 16, 40]
+for j, wd_ in enumerate(widths3):
+    ws.column_dimensions[get_column_letter(1 + j)].width = wd_
+ws.freeze_panes = "C2"
+
 OUT = "/workspace/上架准备工作按周排期_2026-08_2027-02.xlsx"
 wb.save(OUT)
 print("saved:", OUT)
+
+print("\n作图负荷vs产能(单个上限%d款/周, 批量上限%d款/周):" % (SINGLE_CAP, BATCH_CAP))
+for w in WEEKS:
+    if w in HOLIDAY_WEEKS:
+        continue
+    single, batch, tags = art_load(w)
+    if tags:
+        mark = " <== 高负荷" if single / SINGLE_CAP >= 0.8 or batch / BATCH_CAP >= 0.8 else ""
+        print(f"  {w}: 单个 {single:5.1f} ({single/SINGLE_CAP:4.0%})  批量 {batch:5.1f} ({batch/BATCH_CAP:4.0%}){mark}")
 
 # ---------------------------------------------------------------- 校验输出
 print("\n各月上架合计(按周拆解求和):")
