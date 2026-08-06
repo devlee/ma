@@ -282,6 +282,7 @@ rules = [
     ("上架节奏", "每周上新: 月量≥40款的品类按月内各周均摊; 21-39款分2周; ≤20款集中1周上架(各品类错开周次, 平衡周上架总量)。"),
     ("选款产能", "选款池按定款量的1.5倍备选(可调); 人均选款产能: 大批次(≥40款)一人每周40款, 小批次一人每周20款。详见\"产能与作图拆解\"表。"),
     ("作图产能", "单个制作: 1名设计师2款/天, 即10款/人·周, 共10人, 理论上限100款/周; 但目前实际分配给新款的量约30款/周(设计师另有其他需求, 有调整空间)。批量制作: 约20款/天, 满投入上限100款/周(批量线还承担在架款图片迭代, 可调整)。来图定制款按批量线处理。批次作图量按其作图周期(2-3周)均摊计算每周负荷, 详见\"作图负荷vs产能\"表: 超过当前投放30款/周的周需提前与设计团队协调加量。排期保守地要求每批作图在首个上架周前全部完成(留缓冲), 因此每月月初周作图负荷很低; 高负荷周可把当月靠后周次上架款的作图顺延到月初空档周削峰。"),
+    ("单个作图投放计划", "\"作图负荷vs产能\"表是按保守窗口(每批图在首个上架周前完成)计算的需求基线, 呈月中下旬高、月初低的锯齿; \"单个作图投放计划\"表将其平滑: 在\"每款的图须在其上架周前一周的周五完成、SPU生成后才进作图队列、春节两周不排工\"的约束下, 按最早截止优先排产, 得到恒定25款/周的最小可行投放量(2/1周13款收尾)。25是数学下限、无缓冲, 建议实际投放维持当前30款/周: 按25的计划表执行, 每周富余约5款用于吸收延误或在架款优化; 2月起的空档周可提前投放3月批次。"),
     ("春节安排", "假设 2027/2/5-2/18 放假14天(以公司通知为准), 2/8周与2/15周不排任何工作。2月120款全部于 1/29(节前)完成作图, 分 2/1周(65款)与 2/22周(55款)两次上架。"),
     ("2027-03 批次提示", "受春节影响, 3月批次(量待定)中妈妈装需提前: 1/18-1/29 完成选款打分定款, 节前完成SPU并启动作图, 节后 2/22周 收尾作图, 3月第1周正常上架; 常规品类节后 2/22周 立即选款(或直接定款); 婚纱可优先用来图定制款过渡。"),
     ("8月追赶(当前进度)", "BD: 选款打分已完成→本周定款; ED: 已定款→本周SPU+作图; MBD: 作图中→8/10周起滚动上架; WD: 未启动→本周直接定款30款(来图定制另覆盖20款), 8/24周起上架, 必要时部分顺延至9月第1周。8月上架量后置明显(8/24、8/31两周合计145款), 属追赶期特殊情况。"),
@@ -608,9 +609,115 @@ for j, wd_ in enumerate(widths3):
     ws.column_dimensions[get_column_letter(1 + j)].width = wd_
 ws.freeze_panes = "C2"
 
+# ===== Sheet 8: 单个作图每周投放计划(平滑) =====
+# 约束: 每个上架周的款, 其单个作图须在上架前一周(工作周)内完成;
+#       SPU生成后才可进入作图队列; 春节两周(2/8,2/15)不排工。
+# 方法: 最早截止优先(EDF)排产, 搜索最小可行的每周投放量上限, 将需求平滑。
+WORK_WEEKS = [w for w in WEEKS if w not in HOLIDAY_WEEKS]
+
+def prev_work_week(sync_w):
+    cands = [w for w in WORK_WEEKS if w < sync_w]
+    return max(cands)
+
+def single_tasks():
+    tasks = []
+    for b in BATCHES:
+        if b["sub"] == "来图定制" or not b["art"]:
+            continue
+        earliest = b["spu"][0] if b["spu"] else b["art"][0]
+        tag = f"{CAT_NAMES[b['cat']].split(' ')[0]}{b['month'][2:].replace('-', '')}批"
+        for sync_w, q in sorted(b["sync"].items()):
+            amt = q * SINGLE_RATIO[b["cat"]]
+            if amt <= 0:
+                continue
+            tasks.append(dict(tag=tag, earliest=earliest,
+                              deadline=prev_work_week(sync_w), amt=amt))
+    return tasks
+
+def simulate(cap):
+    tasks = single_tasks()
+    for t in tasks:
+        t["rem"] = t["amt"]
+    alloc = {w: [] for w in WORK_WEEKS}  # (tag, amount)
+    for w in WORK_WEEKS:
+        room = cap
+        for t in sorted(tasks, key=lambda t: (t["deadline"], t["earliest"])):
+            if room <= 1e-9:
+                break
+            if t["rem"] <= 1e-9 or t["earliest"] > w or t["deadline"] < w:
+                continue
+            a = min(t["rem"], room)
+            t["rem"] -= a
+            room -= a
+            alloc[w].append((t["tag"], a))
+        if any(t["deadline"] == w and t["rem"] > 1e-9 for t in tasks):
+            return None
+    return alloc
+
+MIN_CAP = None
+for cap in range(10, 80):
+    alloc = simulate(cap)
+    if alloc is not None:
+        MIN_CAP = cap
+        break
+assert MIN_CAP is not None
+ALLOC = simulate(MIN_CAP)
+
+ws = wb.create_sheet("单个作图投放计划")
+cols = ["周次", "建议投放量(款)", "批次明细", "对比当前投放(30款/周)",
+        "占理论产能(100款/周)", "备注"]
+for j, h in enumerate(cols):
+    style_header(ws.cell(row=1, column=1 + j, value=h))
+r = 2
+for w in WEEKS:
+    style_cell(ws.cell(row=r, column=1, value=wk_label(w).replace("\n", " ")), LEFT, BOLD)
+    if w in HOLIDAY_WEEKS:
+        cc = ws.cell(row=r, column=2, value="春节假期")
+        style_cell(cc, CENTER, BOLD)
+        for j in range(2, len(cols) + 1):
+            c2 = ws.cell(row=r, column=j)
+            style_cell(c2, LEFT if j in (3, 6) else CENTER)
+            c2.fill = STAGE_FILL["假期"]
+        r += 1
+        continue
+    items = ALLOC.get(w, [])
+    total = sum(a for _, a in items)
+    # 合并同批次
+    merged = {}
+    for tag, a in items:
+        merged[tag] = merged.get(tag, 0) + a
+    detail = "、".join(f"{tag} {a:.0f}" if abs(a - round(a)) < 0.05 else f"{tag} {a:.1f}"
+                       for tag, a in merged.items())
+    note = ""
+    if total <= 1e-9 and w > max(x for x in WORK_WEEKS if ALLOC.get(x)):
+        note = "空档: 可提前投放3月批次作图"
+    vals = [None, round(total, 1) if total else 0, detail,
+            f"{total/SINGLE_CURRENT:.0%}", f"{total/SINGLE_CAP:.0%}", note]
+    for j, v in enumerate(vals[1:], start=2):
+        cc = ws.cell(row=r, column=j, value=v)
+        style_cell(cc, LEFT if j in (3, 6) else CENTER)
+    load_fill(ws.cell(row=r, column=4), total / SINGLE_CURRENT if total else 0)
+    ws.row_dimensions[r].height = 26
+    r += 1
+widths4 = [16, 14, 64, 18, 18, 30]
+for j, wd_ in enumerate(widths4):
+    ws.column_dimensions[get_column_letter(1 + j)].width = wd_
+ws.freeze_panes = "A2"
+
 OUT = "/workspace/上架准备工作按周排期_2026-08_2027-02.xlsx"
 wb.save(OUT)
 print("saved:", OUT)
+
+print(f"\n最小可行每周投放量上限: {MIN_CAP} 款/周")
+print("平滑后每周投放量:")
+for w in WORK_WEEKS:
+    total = sum(a for _, a in ALLOC.get(w, []))
+    if total > 1e-9:
+        print(f"  {w}: {total:5.1f}")
+# 校验: 总量一致
+total_alloc = sum(a for items in ALLOC.values() for _, a in items)
+total_need = sum(t["amt"] for t in single_tasks())
+print(f"投放总量 {total_alloc:.1f} = 需求总量 {total_need:.1f}: {abs(total_alloc-total_need) < 0.01}")
 
 print("\n作图负荷vs产能(单个理论上限%d款/周, 当前投放%d款/周, 批量上限%d款/周):"
       % (SINGLE_CAP, SINGLE_CURRENT, BATCH_CAP))
