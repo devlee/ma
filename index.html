@@ -147,6 +147,7 @@ document.getElementById("kpis").innerHTML = kpis.map(k=>
 /* ---- Chart 1: score ranking ---- */
 const byScore = [...DATA].sort((a,b)=>a.score-b.score);
 echarts.init(document.getElementById("chartScore")).setOption({
+  animation:false,
   grid:{left:60,right:70,top:10,bottom:24},
   xAxis:{max:100,splitLine:{lineStyle:{color:"#f0f0f0"}},axisLabel:{color:"#8a8f99"}},
   yAxis:{type:"category",data:byScore.map(c=>c.name),axisTick:{show:false},axisLine:{show:false},axisLabel:{color:"#333",fontWeight:600}},
@@ -160,6 +161,7 @@ echarts.init(document.getElementById("chartScore")).setOption({
 const byTop20 = [...DATA].sort((a,b)=>b.top20-a.top20);
 const seg = (f)=>byTop20.map(f);
 echarts.init(document.getElementById("chartStruct")).setOption({
+  animation:false,
   grid:{left:60,right:20,top:34,bottom:24},
   legend:{top:0,itemWidth:12,itemHeight:12,textStyle:{fontSize:11,color:"#666"}},
   tooltip:{trigger:"axis",axisPointer:{type:"shadow"},valueFormatter:v=>v.toFixed(1)+"%"},
@@ -175,6 +177,7 @@ echarts.init(document.getElementById("chartStruct")).setOption({
 
 /* ---- Chart 3: scatter SPU vs avg ---- */
 echarts.init(document.getElementById("chartScatter")).setOption({
+  animation:false,
   grid:{left:50,right:20,top:30,bottom:40},
   xAxis:{name:"SPU 数(款)",nameLocation:"middle",nameGap:26,nameTextStyle:{color:"#8a8f99",fontSize:11},
     splitLine:{lineStyle:{color:"#f0f0f0"}},axisLabel:{color:"#8a8f99"}},
