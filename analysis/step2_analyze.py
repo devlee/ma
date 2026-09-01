@@ -169,7 +169,7 @@ for pct, tier_lab in [(50, 'S'), (80, 'A'), (95, 'B')]:
                 arrowprops=dict(arrowstyle='->', color='grey'))
 ax.set_xlabel('动销SPU占比 %(按销量降序)')
 ax.set_ylabel('累计销量占比 %')
-ax.set_title('衣服品类帕累托曲线(2026年8月, 动销SPU=3,990)')
+ax.set_title(f'衣服品类帕累托曲线(2026年8月, 动销SPU={n_sold:,})')
 save(fig, 'pareto_curve.png')
 
 # 图2: 等级结构 双条形
