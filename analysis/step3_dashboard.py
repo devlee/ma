@@ -48,6 +48,12 @@ for t in TIERS:
     r = tier_stats.loc[t]
     avg = r['销量'] / r['款数'] if r['款数'] else 0
     tier_rows += f'<tr><td><b style="color:{TIER_COLORS[t]}">{t}</b>({TIER_RANGE[t]})</td><td>{int(r["款数"]):,}</td><td>{int(r["销量"]):,}</td><td>{r["销量占比"]:.1%}</td><td>{avg:.1f}</td></tr>'
+    if t == 'E':
+        for sub_name, seg in [('E1(5-10]', m[(m['等级'] == 'E') & (m['销量件数'] > 5)]),
+                              ('E2(0-5]', m[(m['等级'] == 'E') & (m['销量件数'] <= 5)])]:
+            tier_rows += (f'<tr style="color:#8b95a8"><td style="padding-left:26px">└ {sub_name}</td>'
+                          f'<td>{len(seg):,}</td><td>{int(seg["销量件数"].sum()):,}</td>'
+                          f'<td>{seg["销量件数"].sum()/total_qty:.1%}</td><td>{seg["销量件数"].mean():.1f}</td></tr>')
 
 def png64(name):
     with open(OUT + name, 'rb') as f:
@@ -122,6 +128,7 @@ b.hl{{color:#ffd166}}
 <li><span class="tag p0">P0</span><b class="hl">返校节裙 HOCO 全面疲软</b>:正值 8–10 月销售季,在架动销率仅 19%(398 款只卖 178 件),新品动销率也仅 21%——非老款拖累,需排查流量入口、选款与价格竞争力。</li>
 <li><span class="tag p1">P1</span><b class="hl">在架零动销老品 {len(dead_old):,} 款</b>(上架>90天,占在架 {len(dead_old)/len(onshelf):.0%}),最大库存健康负担;先清 HOCO(321款)与 PROM(346款)。</li>
 <li><span class="tag p1">P1</span>新品约 <b class="hl">60 天定型</b>(动销率 32.7%→43.1%→45.1%),但 90 天内新品尚无一款达到 S 级(最高 SWD13339 月销 75 件)——上新"有命中、无爆款",对 38 款潜力新款重点扶持。</li>
+<li><span class="tag p1">P1</span><b class="hl">E级提升靠素材分层运营</b>:E1(月销5-10)502款中 421 款素材就绪(R≥10)可直接推流量;E2(0-5)中 336 款素材好却卖不动待诊断;709 款有销量缺素材(R&lt;10)先种草再推。素材阶梯:零Review动销率 21% vs R≥50 达 97%。</li>
 <li><span class="tag p2">P2</span>妈妈装/伴娘裙为现金牛(合计 52.8% 销量),扩上新配额;复查 $100–120 价格带(动销率最低 22.8%);关注婚纱 4.6% 退款率成因(尺码/预期差)。</li>
 <li><span class="tag ok">健康</span>CR10 仅 6.9%,无单一爆款依赖风险;整体退款率 3.5% 可控;新品动销率随上架时长正常爬坡。</li>
 </ul></div>
@@ -145,6 +152,8 @@ b.hl{{color:#ffd166}}
 <div class="card"><h2>子品类销量与动销率</h2><img src="data:image/png;base64,{png64('subcategory_health.png')}"></div>
 <div class="card"><h2>等级结构</h2><img src="data:image/png;base64,{png64('tier_structure.png')}"></div>
 <div class="card"><h2>动销款等级构成 × 价格带</h2><img src="data:image/png;base64,{png64('tier_by_subcat_price.png')}"></div>
+<div class="card"><h2>素材阶梯 × E级素材矩阵</h2><img src="data:image/png;base64,{png64('e_tier_material.png')}"></div>
+<div class="card"><h2>上新批次效果</h2><img src="data:image/png;base64,{png64('cohort_newproduct.png')}"></div>
 </div>
 
 <div class="note">口径:销量=已成交子订单件数(含退款单,剔除欺诈/空状态/支付信息行/边界重复);GMV=产品表"产品收入"(美金);新品=上架≤90天;动销率分母=在架SPU。
