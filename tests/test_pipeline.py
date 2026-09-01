@@ -26,9 +26,9 @@ MS_PAYLOAD = [
 ]
 
 ADDRESSES = [
-    {"id": "1", "street": "1600 Pennsylvania Ave NW", "city": "Washington", "state": "DC", "zip": "20500"},
-    {"id": "2", "street": "749 Howard Ave", "city": "Biloxi", "state": "MS", "zip": "39530"},
-    {"id": "3", "street": "123 Nonexistent Blvd", "city": "Nowhere", "state": "ZZ", "zip": "00000"},
+    {"id": "1", "street": "1600 Pennsylvania Ave NW", "city": "Washington", "state": "DC", "zip": "20500", "category": "electronics"},
+    {"id": "2", "street": "749 Howard Ave", "city": "Biloxi", "state": "MS", "zip": "39530", "category": "groceries"},
+    {"id": "3", "street": "123 Nonexistent Blvd", "city": "Nowhere", "state": "ZZ", "zip": "00000", "category": "electronics"},
 ]
 
 
@@ -64,11 +64,17 @@ def test_enrich_end_to_end(tmp_path):
     assert rows[0]["income_tier"] == "high"
     assert rows[2]["tract_median_household_income"] == ""
 
+    assert rows[0]["category"] == "electronics"
+
     report = build_report(result)
     assert "Total addresses: 3" in report
     assert "| high |" in report
     assert "| low |" in report
     assert "national median household income" in report.lower()
+    assert "## By purchase category" in report
+    # electronics: 2 addresses, one high-tier tract, one unmatched.
+    assert "| electronics | 2 | $170,000 | 0 | 0 | 0 | 0 | 1 | 1 |" in report
+    assert "| groceries | 1 | $30,000 | 1 | 0 | 0 | 0 | 0 | 0 |" in report
 
 
 def test_geocode_only_skips_acs():
@@ -83,8 +89,8 @@ def test_geocode_only_skips_acs():
 def test_read_addresses_with_aliased_columns(tmp_path):
     csv_path = tmp_path / "input.csv"
     csv_path.write_text(
-        "Address,City,State,Zip_Code\n"
-        "1600 Pennsylvania Ave NW,Washington,DC,20500\n",
+        "Address,City,State,Zip_Code,Product_Category\n"
+        "1600 Pennsylvania Ave NW,Washington,DC,20500,electronics\n",
         encoding="utf-8",
     )
     addresses = read_addresses(csv_path)
@@ -95,5 +101,16 @@ def test_read_addresses_with_aliased_columns(tmp_path):
             "city": "Washington",
             "state": "DC",
             "zip": "20500",
+            "category": "electronics",
         }
     ]
+
+
+def test_read_addresses_without_category_column(tmp_path):
+    csv_path = tmp_path / "input.csv"
+    csv_path.write_text(
+        "street,city,state,zip\n123 Main St,Springfield,IL,62701\n",
+        encoding="utf-8",
+    )
+    addresses = read_addresses(csv_path)
+    assert addresses[0]["category"] == ""

@@ -94,6 +94,36 @@ def build_report(result: EnrichmentResult) -> str:
             lines.append(f"| {state} | {len(state_rows)} | {median_str} |")
         lines.append("")
 
+    by_category: dict[str, list] = defaultdict(list)
+    for row in rows:
+        if row.category:
+            by_category[row.category].append(row)
+    if by_category:
+        lines += ["## By purchase category", ""]
+        lines.append(
+            "| Category | Addresses | Median tract income | "
+            + " | ".join(_TIER_ORDER)
+            + " |"
+        )
+        lines.append("| --- | ---: | ---: | " + " | ".join("---:" for _ in _TIER_ORDER) + " |")
+        for category, cat_rows in sorted(
+            by_category.items(), key=lambda kv: len(kv[1]), reverse=True
+        ):
+            cat_incomes = [
+                r.tract_median_household_income
+                for r in cat_rows
+                if r.tract_median_household_income is not None
+            ]
+            median_str = (
+                f"${statistics.median(cat_incomes):,.0f}" if cat_incomes else "n/a"
+            )
+            cat_tiers = Counter(r.income_tier for r in cat_rows)
+            tier_cells = " | ".join(str(cat_tiers.get(t, 0)) for t in _TIER_ORDER)
+            lines.append(
+                f"| {category} | {len(cat_rows)} | {median_str} | {tier_cells} |"
+            )
+        lines.append("")
+
     lines += [
         "## Methodology & caveats",
         "",

@@ -33,13 +33,17 @@ python -m income_insights.cli --input ... --output ... --geocode-only
 ## 输入格式
 
 CSV 文件,需包含街道、城市、州、邮编四列(列名大小写不敏感,支持常见别名如
-`address`/`street`、`zip`/`zipcode`/`postal_code`),可选 `id` 列。见
-`sample_data/addresses.csv`。
+`address`/`street`、`zip`/`zipcode`/`postal_code`),可选 `id` 和 `category`
+(购买品类,别名 `product_category` 等)列。见 `sample_data/addresses.csv`。
+
+不需要、也不建议包含姓名、电话、邮箱等个人身份信息——地址加品类即可完成分析
+(数据最小化原则)。
 
 ## 输出
 
 - 明细 CSV:每条地址附加 `tract_geoid`、`tract_median_household_income`、`income_tier`。
-- 聚合报告(`--report`):地理编码匹配率、收入分层分布表、分州统计、方法论说明。
+- 聚合报告(`--report`):地理编码匹配率、收入分层分布表、分州统计、品类 × 收入
+  分层交叉表(输入含品类列时)、方法论说明。
 
 ## 收入分层定义
 

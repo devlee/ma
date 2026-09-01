@@ -20,12 +20,16 @@ _COLUMN_ALIASES = {
     "zip": {"zip", "zipcode", "zip_code", "postal_code", "postalcode"},
 }
 
+# Optional passthrough column for category-level analysis.
+_CATEGORY_ALIASES = {"category", "product_category", "item_category", "purchase_category"}
+
 OUTPUT_COLUMNS = [
     "id",
     "street",
     "city",
     "state",
     "zip",
+    "category",
     "geocode_matched",
     "matched_address",
     "tract_geoid",
@@ -41,6 +45,7 @@ class EnrichedRow:
     city: str
     state: str
     zip: str
+    category: str = ""
     geocode_matched: bool = False
     matched_address: str = ""
     tract_geoid: str = ""
@@ -54,6 +59,7 @@ class EnrichedRow:
             "city": self.city,
             "state": self.state,
             "zip": self.zip,
+            "category": self.category,
             "geocode_matched": str(self.geocode_matched).lower(),
             "matched_address": self.matched_address,
             "tract_geoid": self.tract_geoid,
@@ -89,14 +95,19 @@ def _resolve_columns(fieldnames: list[str]) -> dict[str, str]:
 
 
 def read_addresses(input_path: str | Path) -> list[dict]:
-    """Read the input CSV into address dicts with keys id/street/city/state/zip."""
+    """Read the input CSV into address dicts with keys id/street/city/state/zip/category.
+
+    The category column is optional; when absent, category defaults to "".
+    """
     with open(input_path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         if not reader.fieldnames:
             raise ValueError(f"{input_path} is empty")
         columns = _resolve_columns(list(reader.fieldnames))
-        id_column = next(
-            (name for name in reader.fieldnames if name.strip().lower() == "id"), None
+        lookup = {name.strip().lower(): name for name in reader.fieldnames}
+        id_column = lookup.get("id")
+        category_column = next(
+            (lookup[a] for a in _CATEGORY_ALIASES if a in lookup), None
         )
         addresses = []
         for index, row in enumerate(reader, start=1):
@@ -107,6 +118,7 @@ def read_addresses(input_path: str | Path) -> list[dict]:
                     "city": row[columns["city"]].strip(),
                     "state": row[columns["state"]].strip(),
                     "zip": row[columns["zip"]].strip(),
+                    "category": row[category_column].strip() if category_column else "",
                 }
             )
     return addresses

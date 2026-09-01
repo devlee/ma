@@ -1,9 +1,9 @@
-id,street,city,state,zip
-1,1600 Pennsylvania Ave NW,Washington,DC,20500
-2,350 5th Ave,New York,NY,10118
-3,1 Infinite Loop,Cupertino,CA,95014
-4,233 S Wacker Dr,Chicago,IL,60606
-5,600 Congress Ave,Austin,TX,78701
-6,1912 Pike Pl,Seattle,WA,98101
-7,749 Howard Ave,Biloxi,MS,39530
-8,123 Nonexistent Blvd,Nowhere,ZZ,00000
+id,street,city,state,zip,category
+1,1600 Pennsylvania Ave NW,Washington,DC,20500,electronics
+2,350 5th Ave,New York,NY,10118,luxury_goods
+3,1 Infinite Loop,Cupertino,CA,95014,electronics
+4,233 S Wacker Dr,Chicago,IL,60606,home_kitchen
+5,600 Congress Ave,Austin,TX,78701,electronics
+6,1912 Pike Pl,Seattle,WA,98101,groceries
+7,749 Howard Ave,Biloxi,MS,39530,groceries
+8,123 Nonexistent Blvd,Nowhere,ZZ,00000,apparel
