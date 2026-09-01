@@ -6,12 +6,20 @@ import pandas as pd
 OUT = '/workspace/analysis/output/'
 m = pd.read_parquet('/workspace/analysis/master_spu.parquet')
 
-# 与 step2 相同的等级划分
-sold = m[m['销量件数'] > 0].sort_values('销量件数', ascending=False).copy()
-sold['cum'] = sold['销量件数'].cumsum() / sold['销量件数'].sum()
-sold['等级'] = sold['cum'].apply(lambda c: 'S' if c <= .5 else 'A' if c <= .8 else 'B' if c <= .95 else 'C')
-m = m.merge(sold[['SPU', '等级']], on='SPU', how='left')
-m['等级'] = m['等级'].fillna('D')
+# 业务等级标准: 月销量绝对阈值, 区间不含前含后
+def tier_of(qty):
+    if qty > 100: return 'S'
+    if qty > 50: return 'A'
+    if qty > 30: return 'B'
+    if qty > 20: return 'C'
+    if qty > 10: return 'D'
+    if qty > 0: return 'E'
+    return 'F'
+
+TIERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F']
+TIER_RANGE = {'S': '>100件', 'A': '50-100]', 'B': '30-50]', 'C': '20-30]', 'D': '10-20]', 'E': '0-10]', 'F': '0'}
+m['等级'] = m['销量件数'].apply(tier_of)
+sold = m[m['销量件数'] > 0].sort_values('销量件数', ascending=False)
 
 total_qty = int(m['销量件数'].sum())
 total_gmv = m['GMV_产品表'].sum()
@@ -23,6 +31,23 @@ dead_old = m[(m['在架']) & (m['销量件数'] == 0) & (m['新品90天'] != Tru
 new = m[m['新品90天'] == True]
 new_rate = (new['销量件数'] > 0).mean()
 cr10 = sold['销量件数'].head(10).sum() / total_qty
+
+tier_stats = m.groupby('等级').agg(款数=('SPU', 'count'), 销量=('销量件数', 'sum')).reindex(TIERS)
+tier_stats['销量占比'] = tier_stats['销量'] / total_qty
+TIER_COLORS = {'S': '#c0392b', 'A': '#e67e22', 'B': '#f39c12', 'C': '#b8860b', 'D': '#3d7ea6', 'E': '#5d6b85', 'F': '#2c3850'}
+# 等级构成条(款数条只看动销款, 销量条含全部)
+sold_total = len(sold)
+bar_cnt = ''.join(
+    f'<div style="background:{TIER_COLORS[t]};width:{max(tier_stats.loc[t,"款数"]/sold_total*100,3):.1f}%">{t} {tier_stats.loc[t,"款数"]}</div>'
+    for t in TIERS[:-1])
+bar_qty = ''.join(
+    f'<div style="background:{TIER_COLORS[t]};width:{max(tier_stats.loc[t,"销量占比"]*100,3):.1f}%">{t} {tier_stats.loc[t,"销量占比"]:.0%}</div>'
+    for t in TIERS[:-1])
+tier_rows = ''
+for t in TIERS:
+    r = tier_stats.loc[t]
+    avg = r['销量'] / r['款数'] if r['款数'] else 0
+    tier_rows += f'<tr><td><b style="color:{TIER_COLORS[t]}">{t}</b>({TIER_RANGE[t]})</td><td>{int(r["款数"]):,}</td><td>{int(r["销量"]):,}</td><td>{r["销量占比"]:.1%}</td><td>{avg:.1f}</td></tr>'
 
 def png64(name):
     with open(OUT + name, 'rb') as f:
@@ -80,49 +105,34 @@ td{{padding:7px 8px;border-bottom:1px solid #1f2940}} tr:last-child td{{border-b
 b.hl{{color:#ffd166}}
 </style></head><body>
 <h1>衣服品类产品等级与健康度诊断面板</h1>
-<div class="sub">统计窗口 2026-08-01 ~ 08-31 · 9 个子品类(swd/sbd/smbd/sed/scd/spd/shd/sfgd/sjbd) · 销量含退款单(与产品表口径一致, 欺诈单剔除) · 等级=帕累托 50/80/95% 分档</div>
+<div class="sub">统计窗口 2026-08-01 ~ 08-31 · 9 个子品类(swd/sbd/smbd/sed/scd/spd/shd/sfgd/sjbd) · 销量含退款单(与产品表口径一致, 欺诈单剔除) · 等级=月销量绝对阈值(不含前含后): S>100 / A(50,100] / B(30,50] / C(20,30] / D(10,20] / E(0,10] / F=0</div>
 
 <div class="grid kpis">
 <div class="card kpi"><div class="l">SPU 总数 / 在架</div><div class="v">{len(m):,} / {len(onshelf):,}</div><div class="d">下架 {len(m)-len(onshelf):,}</div></div>
 <div class="card kpi"><div class="l">8月销量 / GMV</div><div class="v">{total_qty:,} 件</div><div class="d">${total_gmv/10000:,.0f} 万美金</div></div>
 <div class="card kpi"><div class="l">在架动销率</div><div class="v">{rate_onshelf:.1%}</div><div class="d">动销 SPU {len(sold):,} 个</div></div>
-<div class="card kpi"><div class="l">S+A 款贡献</div><div class="v">80% 销量</div><div class="d">仅 {len(sa):,} 款 · 占 SPU {len(sa)/len(m):.1%}</div></div>
+<div class="card kpi"><div class="l">S级爆款(月销>100)</div><div class="v">{int(tier_stats.loc['S','款数'])} 款</div><div class="d">S+A 共 {len(sa):,} 款 · 贡献销量 {sa['销量件数'].sum()/total_qty:.1%}</div></div>
 <div class="card kpi"><div class="l">CR10 (爆款依赖)</div><div class="v">{cr10:.1%}</div><div class="d">无单一爆款依赖 · 头部偏平</div></div>
 <div class="card kpi"><div class="l">整体退款率</div><div class="v">{refund_rate:.1%}</div><div class="d">件数口径 · 婚纱最高 4.6%</div></div>
 </div>
 
 <div class="grid two">
 <div class="card"><h2>关键结论与行动优先级</h2><ul class="conc">
-<li><span class="tag ok">健康</span>帕累托结构正常:<b class="hl">7.4% 的款贡献 80% 销量</b>;CR10 仅 6.9%,无爆款依赖风险;新品供血正常(90天内产出 15 个 S 款 + 51 个 A 款)。</li>
+<li><span class="tag p0">P0</span><b class="hl">头部严重偏薄</b>:按业务标准 S 级爆款仅 {int(tier_stats.loc['S','款数'])} 款、S+A 合计 {len(sa)} 款只贡献 {sa['销量件数'].sum()/total_qty:.0%} 销量;而 E 级(月销≤10)有 {int(tier_stats.loc['E','款数']):,} 款、贡献 {tier_stats.loc['E','销量占比']:.0%} 销量——生意靠长尾微销款堆出来,亟需造爆款:对 Top 款(SBD10628 / SMBD11937 / SMBD12560)与 88 款月销≥50 的成熟款做流量加码。</li>
 <li><span class="tag p0">P0</span><b class="hl">返校节裙 HOCO 全面疲软</b>:正值 8–10 月销售季,在架动销率仅 19%(398 款只卖 178 件),新品动销率也仅 21%——非老款拖累,需排查流量入口、选款与价格竞争力。</li>
 <li><span class="tag p1">P1</span><b class="hl">在架零动销老品 {len(dead_old):,} 款</b>(上架>90天,占在架 {len(dead_old)/len(onshelf):.0%}),最大库存健康负担;先清 HOCO(321款)与 PROM(346款)。</li>
-<li><span class="tag p1">P1</span>头部偏平、缺超级爆款:单款最高月销 292 件仅占 1%;建议对 Top 款(SBD10628 / SMBD11937 / SMBD12560)做流量加码,探索单款放量上限。</li>
-<li><span class="tag p1">P1</span>新品约 <b class="hl">60 天定型</b>(动销率 32.7%→43.1%→45.1%):上架满 60 天仍零动销的新品即可纳入去留评估,不必等 90 天。</li>
-<li><span class="tag p2">P2</span>妈妈装/伴娘裙为现金牛,扩上新配额;复查 $100–120 价格带(动销率最低 22.8%);关注婚纱 4.6% 退款率成因(尺码/预期差)。</li>
+<li><span class="tag p1">P1</span>新品约 <b class="hl">60 天定型</b>(动销率 32.7%→43.1%→45.1%),但 90 天内新品尚无一款达到 S 级(最高 SWD13339 月销 75 件)——上新"有命中、无爆款",对 38 款潜力新款重点扶持。</li>
+<li><span class="tag p2">P2</span>妈妈装/伴娘裙为现金牛(合计 52.8% 销量),扩上新配额;复查 $100–120 价格带(动销率最低 22.8%);关注婚纱 4.6% 退款率成因(尺码/预期差)。</li>
+<li><span class="tag ok">健康</span>CR10 仅 6.9%,无单一爆款依赖风险;整体退款率 3.5% 可控;新品动销率随上架时长正常爬坡。</li>
 </ul></div>
 
-<div class="card"><h2>产品等级结构(款数 → 销量占比)</h2>
-<div class="tierbar">
-<div style="background:#c0392b;width:18%">S 1.8%</div>
-<div style="background:#e67e22;width:16%">A 5.6%</div>
-<div style="background:#b8860b;width:14%">B 9.3%</div>
-<div style="background:#5d6b85;width:12%">C 8.6%</div>
-<div style="background:#2c3850;width:40%">D 零动销 74.8%</div>
-</div>
-<div class="legend"><span>■ 款数占比(上条, 示意宽度)</span></div>
-<div class="tierbar">
-<div style="background:#c0392b;width:49.9%">S 49.9%</div>
-<div style="background:#e67e22;width:30.1%">A 30.1%</div>
-<div style="background:#b8860b;width:15%">B 15%</div>
-<div style="background:#5d6b85;width:5%">C 5%</div>
-</div>
+<div class="card"><h2>产品等级结构(业务标准)</h2>
+<div class="tierbar">{bar_cnt}</div>
+<div class="legend"><span>■ 动销款款数构成(上条, 共 {sold_total:,} 款, 宽度=占比)</span></div>
+<div class="tierbar">{bar_qty}</div>
 <div class="legend"><span>■ 销量占比(下条)</span></div>
-<table style="margin-top:12px"><tr><th>等级</th><th>款数</th><th>款均月销</th><th>月销区间</th></tr>
-<tr><td>S 爆款</td><td>287</td><td>50.8</td><td>21–292 件</td></tr>
-<tr><td>A 旺款</td><td>893</td><td>9.8</td><td>5–21</td></tr>
-<tr><td>B 平款</td><td>1,486</td><td>3.0</td><td>2–5</td></tr>
-<tr><td>C 微销款</td><td>1,375</td><td>1.1</td><td>1–2</td></tr>
-<tr><td>D 零动销</td><td>11,991</td><td>0</td><td>—</td></tr></table>
+<table style="margin-top:12px"><tr><th>等级(月销区间)</th><th>款数</th><th>销量</th><th>销量占比</th><th>款均月销</th></tr>
+{tier_rows}</table>
 </div>
 </div>
 

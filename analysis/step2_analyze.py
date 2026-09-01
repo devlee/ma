@@ -17,26 +17,31 @@ os.makedirs(ART, exist_ok=True)
 
 m = pd.read_parquet('/workspace/analysis/master_spu.parquet')
 
-# ---------- 1. 帕累托等级划分 ----------
+# ---------- 1. 等级划分(业务标准: 月销量绝对阈值, 区间不含前含后) ----------
+# S >100 | A (50,100] | B (30,50] | C (20,30] | D (10,20] | E (0,10] | F =0
+def tier_of(qty):
+    if qty > 100:
+        return 'S'
+    if qty > 50:
+        return 'A'
+    if qty > 30:
+        return 'B'
+    if qty > 20:
+        return 'C'
+    if qty > 10:
+        return 'D'
+    if qty > 0:
+        return 'E'
+    return 'F'
+
+
+TIERS = ['S', 'A', 'B', 'C', 'D', 'E', 'F']
+TIER_LABEL = {'S': 'S (>100件)', 'A': 'A (50-100]', 'B': 'B (30-50]', 'C': 'C (20-30]',
+              'D': 'D (10-20]', 'E': 'E (0-10]', 'F': 'F (零动销)'}
+m['等级'] = pd.Categorical(m['销量件数'].apply(tier_of), TIERS, ordered=True)
 sold = m[m['销量件数'] > 0].sort_values('销量件数', ascending=False).copy()
 sold['累计占比'] = sold['销量件数'].cumsum() / sold['销量件数'].sum()
-
-
-def tier_of(cum):
-    if cum <= 0.50:
-        return 'S 爆款'
-    if cum <= 0.80:
-        return 'A 旺款'
-    if cum <= 0.95:
-        return 'B 平款'
-    return 'C 微销款'
-
-
-sold['等级'] = sold['累计占比'].apply(tier_of)
-m = m.merge(sold[['SPU', '等级', '累计占比']], on='SPU', how='left')
-m['等级'] = m['等级'].fillna('D 零动销')
-TIERS = ['S 爆款', 'A 旺款', 'B 平款', 'C 微销款', 'D 零动销']
-m['等级'] = pd.Categorical(m['等级'], TIERS, ordered=True)
+m = m.merge(sold[['SPU', '累计占比']], on='SPU', how='left')
 
 total_qty = m['销量件数'].sum()
 total_gmv = m['GMV_产品表'].sum()
@@ -90,8 +95,9 @@ def health(g):
         '销量件数': g['销量件数'].sum(),
         '销量占比': g['销量件数'].sum() / total_qty,
         'GMV美金': g['GMV_产品表'].sum(),
-        'S款数': (g['等级'] == 'S 爆款').sum(),
-        'A款数': (g['等级'] == 'A 旺款').sum(),
+        'S款数': (g['等级'] == 'S').sum(),
+        'A款数': (g['等级'] == 'A').sum(),
+        'B款数': (g['等级'] == 'B').sum(),
         '在架零动销数': ((g['在架']) & (g['销量件数'] == 0)).sum(),
         'CR5内部': sold_g['销量件数'].nlargest(5).sum() / max(sold_g['销量件数'].sum(), 1),
         '动销款均月销': sold_g['销量件数'].mean() if len(sold_g) else 0,
@@ -117,8 +123,9 @@ def new_bucket_stats(g):
         '动销率': (g['销量件数'] > 0).mean() if len(g) else np.nan,
         '销量合计': g['销量件数'].sum(),
         '动销款均月销': sold_g['销量件数'].mean() if len(sold_g) else 0,
-        'S款数': (g['等级'] == 'S 爆款').sum(),
-        'A款数': (g['等级'] == 'A 旺款').sum(),
+        'S款数': (g['等级'] == 'S').sum(),
+        'A款数': (g['等级'] == 'A').sum(),
+        'B款数': (g['等级'] == 'B').sum(),
     })
 
 
@@ -160,12 +167,12 @@ def save(fig, name):
 fig, ax = plt.subplots(figsize=(9, 5.5))
 x = np.arange(1, n_sold + 1) / n_sold * 100
 ax.plot(x, sold['累计占比'].values * 100, color='#c0392b', lw=2)
-for pct, tier_lab in [(50, 'S'), (80, 'A'), (95, 'B')]:
+for pct in [50, 80, 95]:
     idx = (sold['累计占比'] * 100 >= pct).idxmax()
     xi = (sold.index.get_indexer([idx])[0] + 1) / n_sold * 100
     ax.axhline(pct, color='grey', ls=':', lw=0.8)
     ax.axvline(xi, color='grey', ls=':', lw=0.8)
-    ax.annotate(f'{tier_lab}级截点: {xi:.1f}%的动销款\n贡献{pct}%销量', (xi, pct), xytext=(xi + 4, pct - 13), fontsize=9,
+    ax.annotate(f'{xi:.1f}%的动销款\n贡献{pct}%销量', (xi, pct), xytext=(xi + 4, pct - 13), fontsize=9,
                 arrowprops=dict(arrowstyle='->', color='grey'))
 ax.set_xlabel('动销SPU占比 %(按销量降序)')
 ax.set_ylabel('累计销量占比 %')
@@ -173,18 +180,21 @@ ax.set_title(f'衣服品类帕累托曲线(2026年8月, 动销SPU={n_sold:,})')
 save(fig, 'pareto_curve.png')
 
 # 图2: 等级结构 双条形
-fig, axes = plt.subplots(1, 2, figsize=(11, 4.8))
-colors = ['#c0392b', '#e67e22', '#f1c40f', '#95a5a6', '#bdc3c7']
-axes[0].bar(tier_sum['等级'].astype(str), tier_sum['SPU数'], color=colors)
+fig, axes = plt.subplots(1, 2, figsize=(12, 4.8))
+colors = ['#c0392b', '#e67e22', '#f39c12', '#f1c40f', '#3498db', '#95a5a6', '#bdc3c7']
+xlabels = [TIER_LABEL[t] for t in tier_sum['等级'].astype(str)]
+axes[0].bar(xlabels, tier_sum['SPU数'], color=colors)
 for i, v in enumerate(tier_sum['SPU数']):
-    axes[0].text(i, v, f"{v}\n({v/len(m):.1%})", ha='center', va='bottom', fontsize=9)
+    axes[0].text(i, v, f"{v}\n({v/len(m):.1%})", ha='center', va='bottom', fontsize=8.5)
 axes[0].set_title('各等级 SPU 数量')
-axes[0].set_ylim(0, tier_sum['SPU数'].max() * 1.2)
-axes[1].bar(tier_sum['等级'].astype(str), tier_sum['销量占比'] * 100, color=colors)
+axes[0].set_ylim(0, tier_sum['SPU数'].max() * 1.22)
+axes[0].tick_params(axis='x', rotation=25, labelsize=8.5)
+axes[1].bar(xlabels, tier_sum['销量占比'] * 100, color=colors)
 for i, v in enumerate(tier_sum['销量占比'] * 100):
-    axes[1].text(i, v, f'{v:.1f}%', ha='center', va='bottom', fontsize=9)
+    axes[1].text(i, v, f'{v:.1f}%', ha='center', va='bottom', fontsize=8.5)
 axes[1].set_title('各等级销量占比 %')
-fig.suptitle('产品等级结构(S/A/B/C=累计销量50/80/95%分档, D=零动销)', y=1.0)
+axes[1].tick_params(axis='x', rotation=25, labelsize=8.5)
+fig.suptitle('产品等级结构(业务标准: 月销量绝对阈值, 区间不含前含后)', y=1.0)
 save(fig, 'tier_structure.png')
 
 # 图3: 子品类健康度
@@ -207,11 +217,11 @@ save(fig, 'subcategory_health.png')
 # 图4: 子品类 等级构成(动销款) + 价格带
 fig, axes = plt.subplots(1, 2, figsize=(12.5, 5))
 ct = pd.crosstab(m['子品类'], m['等级'])
-ct_sold = ct[['S 爆款', 'A 旺款', 'B 平款', 'C 微销款']]
+ct_sold = ct[['S', 'A', 'B', 'C', 'D', 'E']]
 ct_sold = ct_sold.loc[sub.index]
 bottom = np.zeros(len(ct_sold))
-for col, c in zip(ct_sold.columns, colors[:4]):
-    axes[0].bar(ct_sold.index, ct_sold[col], bottom=bottom, label=col, color=c)
+for col, c in zip(ct_sold.columns, colors[:6]):
+    axes[0].bar(ct_sold.index, ct_sold[col], bottom=bottom, label=TIER_LABEL[col], color=c)
     bottom += ct_sold[col].values
 axes[0].set_title('各子品类动销款等级构成(SPU数)')
 axes[0].legend(fontsize=8)
