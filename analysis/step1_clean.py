@@ -12,8 +12,10 @@ PREFIX_NAME = {
     'sed': '晚礼服 EVENING', 'scd': '鸡尾酒裙 COCKTAIL', 'spd': '舞会裙 PROM',
     'shd': '返校节裙 HOCO', 'sfgd': '花童裙 FLOWER GIRL', 'sjbd': '少女伴娘 JR BM',
 }
-# 已支付且未退款的状态
-PAID_STATUS = ['支付成功', '售后争议中', '售后争议已解决', '售后争议通知', '订单争议中']
+# 有效销量状态:含退款单(已成交口径,与产品表一致),仅剔除欺诈单与空状态
+VALID_STATUS = ['支付成功', '售后争议中', '售后争议已解决', '售后争议通知', '订单争议中',
+                '支付渠道退款', '退款申请中', '支付通道手动退款']
+REFUND_STATUS = ['支付渠道退款', '退款申请中', '支付通道手动退款']
 WINDOW = ('2026-08-01', '2026-09-01')  # [8-01, 9-01)
 
 
@@ -33,12 +35,13 @@ def load_orders():
     df['下单时间'] = pd.to_datetime(df['下单时间'], errors='coerce')
     df = df[(df['下单时间'] >= WINDOW[0]) & (df['下单时间'] < WINDOW[1])]
     n3 = len(df)
-    df = df[df['订单支付状态'].isin(PAID_STATUS)]
+    df = df[df['订单支付状态'].isin(VALID_STATUS)]
     n4 = len(df)
+    df['是否退款单'] = df['订单支付状态'].isin(REFUND_STATUS)
     df['prefix'] = extract_prefix(df['SPU'])
     df['SPU'] = df['SPU'].astype(str).str.strip().str.upper()
     clothing = df[df['prefix'].notna()].copy()
-    print(f"订单行清洗: 原始 {n0} -> 去支付空行 {n1} -> 去重 {n2} -> 8月窗口 {n3} -> 已支付 {n4} -> 衣服品类行 {len(clothing)}")
+    print(f"订单行清洗: 原始 {n0} -> 去支付空行 {n1} -> 去重 {n2} -> 8月窗口 {n3} -> 有效状态(含退款) {n4} -> 衣服品类行 {len(clothing)}")
     return df, clothing
 
 
@@ -59,8 +62,10 @@ def main():
     prod = load_products()
 
     # 按SPU聚合订单
+    cloth_orders['退款件数_tmp'] = cloth_orders['数量'].where(cloth_orders['是否退款单'], 0)
     agg = cloth_orders.groupby('SPU').agg(
         销量件数=('数量', 'sum'),
+        退款件数=('退款件数_tmp', 'sum'),
         订单行数=('子订单号', 'count'),
         订单数_订单表=('订单编号', 'nunique'),
     ).reset_index()
@@ -81,13 +86,15 @@ def main():
 
     # 构建SPU主表(产品表为主表, 保留零销量SPU)
     master = prod.merge(agg, on='SPU', how='left')
-    for c in ['销量件数', '订单行数', '订单数_订单表']:
+    for c in ['销量件数', '退款件数', '订单行数', '订单数_订单表']:
         master[c] = master[c].fillna(0).astype(int)
     master['子品类'] = master['prefix'].map(PREFIX_NAME)
     master['在架'] = (master['产品状态'] == '上架')
     period_end = pd.Timestamp('2026-08-31')
     master['上架天数'] = (period_end - master['上架日期']).dt.days
-    master['新品30天'] = master['上架天数'] <= 30
+    master['新品90天'] = master['上架天数'] <= 90
+    bins = [-1, 30, 60, 90]
+    master['新品龄段'] = pd.cut(master['上架天数'], bins, labels=['≤30天', '31-60天', '61-90天'])
     # 产品收入为产品表口径(8月, 美金)
     master = master.rename(columns={'产品收入': 'GMV_产品表', '订单数': '订单数_产品表'})
 

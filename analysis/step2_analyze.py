@@ -95,6 +95,7 @@ def health(g):
         '在架零动销数': ((g['在架']) & (g['销量件数'] == 0)).sum(),
         'CR5内部': sold_g['销量件数'].nlargest(5).sum() / max(sold_g['销量件数'].sum(), 1),
         '动销款均月销': sold_g['销量件数'].mean() if len(sold_g) else 0,
+        '退款率': g['退款件数'].sum() / max(g['销量件数'].sum(), 1),
         '均价美金': g.loc[g['产品单价'] > 0, '产品单价'].median(),
     })
 
@@ -102,19 +103,34 @@ sub = m.groupby('子品类').apply(health, include_groups=False).sort_values('�
 print('\n=== 子品类健康度 ===')
 print(sub.to_string())
 
-# ---------- 5. 新品分析 ----------
-new = m[m['新品30天'] == True]
-old_onshelf_dead = m[(m['在架']) & (m['销量件数'] == 0) & (m['新品30天'] != True)]
-new_sum = pd.Series({
-    '新品SPU数(上架≤30天)': len(new),
-    '新品动销数': (new['销量件数'] > 0).sum(),
-    '新品动销率': (new['销量件数'] > 0).mean() if len(new) else np.nan,
-    '新品销量合计': new['销量件数'].sum(),
-    '新品中S/A款数': new['等级'].isin(['S 爆款', 'A 旺款']).sum(),
-    '在架老品零动销数': len(old_onshelf_dead),
-})
-print('\n=== 新品与滞销 ===')
+# ---------- 5. 新品分析(90天口径, 按上架龄段拆分) ----------
+new = m[m['新品90天'] == True].copy()
+old_onshelf_dead = m[(m['在架']) & (m['销量件数'] == 0) & (m['新品90天'] != True)]
+
+
+def new_bucket_stats(g):
+    sold_g = g[g['销量件数'] > 0]
+    return pd.Series({
+        'SPU数': len(g),
+        '在架数': g['在架'].sum(),
+        '动销数': len(sold_g),
+        '动销率': (g['销量件数'] > 0).mean() if len(g) else np.nan,
+        '销量合计': g['销量件数'].sum(),
+        '动销款均月销': sold_g['销量件数'].mean() if len(sold_g) else 0,
+        'S款数': (g['等级'] == 'S 爆款').sum(),
+        'A款数': (g['等级'] == 'A 旺款').sum(),
+    })
+
+
+new_sum = new.groupby('新品龄段', observed=True).apply(new_bucket_stats, include_groups=False)
+new_sum.loc['新品合计(≤90天)'] = new_bucket_stats(new)
+print('\n=== 新品分龄段(上架≤90天) ===')
 print(new_sum.to_string())
+print(f"\n在架且上架>90天的零动销老品: {len(old_onshelf_dead)}")
+# 新品 × 子品类动销率
+new_sub = new.groupby('子品类').apply(new_bucket_stats, include_groups=False).sort_values('SPU数', ascending=False)
+print('\n=== 新品(≤90天) × 子品类 ===')
+print(new_sub.to_string())
 
 # ---------- 6. 价格带 ----------
 bins = [0, 50, 80, 100, 120, 150, 200, 300, 10000]
@@ -209,8 +225,8 @@ axes[1].set_xlabel('产品单价(美金)')
 save(fig, 'tier_by_subcat_price.png')
 
 # ---------- Excel 输出 ----------
-detail_cols = ['SPU', '子品类', 'prefix', '产品分类', '产品状态', '在架', '上架日期', '上架天数', '新品30天',
-               '产品单价', '销量件数', '订单数_订单表', '订单数_产品表', 'GMV_产品表', '等级', '累计占比', 'Reviews数', '买家秀数量']
+detail_cols = ['SPU', '子品类', 'prefix', '产品分类', '产品状态', '在架', '上架日期', '上架天数', '新品90天', '新品龄段',
+               '产品单价', '销量件数', '退款件数', '订单数_订单表', '订单数_产品表', 'GMV_产品表', '等级', '累计占比', 'Reviews数', '买家秀数量']
 detail = m[detail_cols].sort_values(['等级', '销量件数'], ascending=[True, False])
 dead_onshelf = detail[(detail['在架']) & (detail['销量件数'] == 0)].sort_values('上架天数', ascending=False)
 
@@ -220,7 +236,8 @@ with pd.ExcelWriter(OUT + '衣服品类等级分析_2026年8月.xlsx', engine='o
     pd.DataFrame([conc]).T.rename(columns={0: '数值'}).to_excel(w, sheet_name='集中度指标')
     price.reset_index().to_excel(w, sheet_name='价格带分析', index=False)
     top20.to_excel(w, sheet_name='Top20爆款', index=False)
-    new_sum.to_frame('数值').to_excel(w, sheet_name='新品概况')
+    new_sum.reset_index().to_excel(w, sheet_name='新品分龄段', index=False)
+    new_sub.reset_index().to_excel(w, sheet_name='新品×子品类', index=False)
     dead_onshelf.to_excel(w, sheet_name='在架零动销清单', index=False)
     detail.to_excel(w, sheet_name='SPU明细含等级', index=False)
 
