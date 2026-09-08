@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>爆款健康度分析 · 衣服品类</title>
+<script src="assets/echarts.min.js"></script>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#ffffff; --line:#ececec; --text:#333; --sub:#8a8f99;
+    --red:#c0392b; --orange:#e67e22; --yellow:#f1c40f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,sans-serif;background:var(--bg);color:var(--text);padding:20px}
+  .page{max-width:1280px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .subtitle{color:var(--sub);font-size:12px;margin-bottom:18px}
+  .badge{background:#fdeceb;color:#c0392b;border:1px solid #f5c6c2;font-size:11px;font-weight:500;padding:1px 8px;border-radius:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:16px}
+  .card h2{font-size:14px;font-weight:600;margin-bottom:2px;display:flex;align-items:center;gap:8px}
+  .card .desc{font-size:12px;color:var(--sub);margin-bottom:10px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+  .kpi .v{font-size:22px;font-weight:700}
+  .kpi .l{font-size:12px;color:var(--sub);margin-top:2px}
+  .kpi .n{font-size:11px;color:#aab;margin-top:4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .chart{width:100%;height:360px}
+  .chart-tall{width:100%;height:420px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--sub);font-weight:500;background:#fafafa}
+  .cell{display:inline-block;min-width:46px;padding:2px 8px;border-radius:4px;font-weight:600;text-align:center}
+  .diag{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .dcard{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:#fcfcfc}
+  .dcard .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .dcard .nm{font-weight:700;font-size:13px}
+  .gtag{font-size:11px;font-weight:600;padding:1px 8px;border-radius:10px}
+  .dcard p{font-size:12px;line-height:1.7;color:#555}
+  .dcard p b{color:#333}
+  .dcard .adv{margin-top:6px;font-size:12px;color:#555;background:#f6f7f9;border-radius:6px;padding:6px 8px;line-height:1.6}
+  .dcard .adv::before{content:"建议 ";font-weight:600;color:#c0392b}
+  .method{font-size:12px;color:var(--sub);line-height:1.9}
+  .method b{color:#555}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.diag{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>爆款健康度分析 <span class="badge">衣服品类</span></h1>
+  <div class="subtitle">基于 Top20 / Top50 / Top100 款销量占比,从爆款强度、集中度安全、腰部厚度、单款效率四个维度评估各子品类的爆款结构健康度</div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>健康度总分排行</h2>
+      <div class="desc">综合得分 = 爆款强度×30% + 集中度安全×25% + 腰部厚度×25% + 单款效率×20%(满分 100)</div>
+      <div id="chartScore" class="chart"></div>
+    </div>
+    <div class="card">
+      <h2>头 / 腰 / 尾销量结构</h2>
+      <div class="desc">健康形态:头部适度集中(25%~40%)、腰部厚实(可接续)、长尾不失血。按 Top20 占比降序排列</div>
+      <div id="chartStruct" class="chart"></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>铺款效率:SPU 数 × 单款平均销量</h2>
+      <div class="desc">气泡大小 = 品类总销量,颜色 = 健康度等级。右上为理想区;右下(款多量薄)为效率洼地</div>
+      <div id="chartScatter" class="chart"></div>
+    </div>
+    <div class="card">
+      <h2>四维健康度得分明细</h2>
+      <div class="desc">单元格颜色越绿越健康,越红风险越高</div>
+      <div style="overflow-x:auto"><table id="dimTable"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>分品类诊断与建议</h2>
+    <div class="desc">按健康度总分降序</div>
+    <div class="diag" id="diag"></div>
+  </div>
+
+  <div class="card">
+    <h2>评分方法说明</h2>
+    <div class="method">
+      <b>爆款强度(30%)</b>:爆款倍数 = Top20 平均单款销量 ÷ 品类平均单款销量,按 12× 封顶折算。衡量头部款是否真的"能打",剔除了品类规模的影响。<br>
+      <b>集中度安全(25%)</b>:Top20 销量占比落在 25%~40% 视为满分;低于 25% 说明爆款乏力,每低 1pp 扣 3 分;高于 40% 说明过度依赖头部,每高 1pp 扣 2 分。<br>
+      <b>腰部厚度(25%)</b>:Top21~100 的销量贡献(pp),按 35pp 封顶折算。腰部厚意味着爆款有梯队、头部断档时可接续。<br>
+      <b>单款效率(20%)</b>:品类平均单款销量,按 8 件/款封顶折算。衡量开发资源是否被长尾稀释。<br>
+      注:SPU 少于 100 款的品类(SFGD / SJBD / SHD)Top100 占比必然为 100%,其高集中度属于"盘子小"的机械结果,判断爆款成色须看绝对销量,评分中已通过"爆款强度"维度体现。
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = [
+ {name:"SMBD",spu:947,sales:8146,top20:26.01,top50:44.87,top100:60.10,avg:8.60,t20avg:105.9,mult:12.3,waist:34.1,tailPct:39.90,tailAvg:3.84,dims:{strength:100,safety:100,waist:97.4,eff:100},score:99.3,grade:"健康",
+  diag:"品类第一大盘。Top20 平均 <b>105.9 件/款</b>,爆款倍数 12.3×,头部真能打;腰部(Top21~100)再贡献 34.1pp,梯队完整;长尾 847 款平均 3.8 件仍有产出。",
+  adv:"维持当前打爆节奏,从长尾中持续筛选潜力款补进腰部,形成头部轮换。"},
+ {name:"SBD",spu:501,sales:4357,top20:38.40,top50:57.52,top100:72.73,avg:8.70,t20avg:83.7,mult:9.6,waist:34.3,tailPct:27.27,tailAvg:2.96,dims:{strength:80.2,safety:100,waist:98.1,eff:100},score:93.6,grade:"健康",
+  diag:"单款效率全场最高(<b>8.7 件/款</b>),Top20 占 38.4% 处于健康区间上沿,腰部厚实。结构优质。",
+  adv:"监控头部集中度不再上移(超过 40% 需预警),持续补充新款测试,防止头部老化。"},
+ {name:"SED",spu:581,sales:3764,top20:34.35,top50:52.58,top100:68.07,avg:6.48,t20avg:64.6,mult:10.0,waist:33.7,tailPct:31.93,tailAvg:2.50,dims:{strength:83.2,safety:100,waist:96.3,eff:81.0},score:90.2,grade:"健康",
+  diag:"头腰尾比例接近理想形态:Top20 占 34.4%、腰部 33.7pp、长尾 31.9%,爆款倍数 10×,结构均衡。",
+  adv:"保持现有款量配比,可将其结构作为其他品类的对标基准。"},
+ {name:"SWD",spu:984,sales:4244,top20:20.85,top50:34.57,top100:48.09,avg:4.31,t20avg:44.2,mult:10.3,waist:27.2,tailPct:51.91,tailAvg:2.49,dims:{strength:85.5,safety:87.6,waist:77.8,eff:53.9},score:77.8,grade:"亚健康",
+  diag:"<b>最大的效率洼地</b>:SPU 全场最多(984 款)但单款仅 4.3 件;Top20 占比全场最低(20.9%),长尾 884 款吞掉 51.9% 销量、平均仅 2.5 件/款。爆款倍数 10.3× 说明头部相对能打,问题是款太多、量被摊薄。",
+  adv:"收缩开发宽度,把流量与资源集中到验证过的头部款打爆;对长尾做清仓与淘汰,目标将 Top100 占比拉升至 60% 以上。"},
+ {name:"SPD",spu:304,sales:1186,top20:36.59,top50:57.34,top100:75.80,avg:3.90,t20avg:21.7,mult:5.6,waist:39.2,tailPct:24.20,tailAvg:1.41,dims:{strength:46.3,safety:100,waist:100,eff:48.8},score:73.7,grade:"亚健康",
+  diag:"集中度数字健康,但头部款平均仅 <b>21.7 件</b>、爆款倍数 5.6×,属于\"爆而不强\":集中度合格是因为盘子小,不是爆款硬。",
+  adv:"先验证品类是否具备打爆基因(选 3~5 款重点投放测试),在此之前控制铺款节奏。"},
+ {name:"SCD",spu:204,sales:916,top20:44.21,top50:67.03,top100:85.15,avg:4.49,t20avg:20.2,mult:4.5,waist:40.9,tailPct:14.85,tailAvg:1.31,dims:{strength:37.6,safety:91.6,waist:100,eff:56.1},score:70.4,grade:"亚健康",
+  diag:"Top20 占 44.2% 已越过健康区间上限,且头部单款仅 <b>20.2 件</b>——依赖度在升高而爆款绝对量不足,长尾 104 款平均仅 1.3 件。",
+  adv:"精选款式、做深单款:压缩上新数量,把预算集中到头部 20 款做量,淘汰月销 1 件以下的尾款。"},
+ {name:"SFGD",spu:94,sales:586,top20:63.82,top50:89.76,top100:100.0,avg:6.23,t20avg:18.7,mult:3.0,waist:36.2,tailPct:0,tailAvg:null,dims:{strength:25.0,safety:52.4,waist:100,eff:77.9},score:61.2,grade:"关注",
+  diag:"小盘品类(94 款),Top20 独占 63.8%,头部依赖偏高;好在单款效率 6.2 件/款尚可,盘子有基本产出能力。",
+  adv:"补充腰部候选款(当前 Top20 之外仅 74 款),防止头部断档;头部依赖每升 1pp 风险放大。"},
+ {name:"SHD",spu:65,sales:141,top20:60.99,top50:89.36,top100:100.0,avg:2.17,t20avg:4.3,mult:2.0,waist:39.0,tailPct:0,tailAvg:null,dims:{strength:16.5,safety:58.0,waist:100,eff:27.1},score:49.9,grade:"预警",
+  diag:"65 款仅 141 件,单款平均 <b>2.2 件</b>为全场最低,连 Top20 平均也只有 4.3 件——不存在真正意义上的爆款。",
+  adv:"评估品类去留或重新定位;若保留,先收缩至 20~30 款并重做选品逻辑,再决定是否加码。"},
+ {name:"SJBD",spu:41,sales:157,top20:84.08,top50:100.0,top100:100.0,avg:3.83,t20avg:6.6,mult:1.7,waist:15.9,tailPct:0,tailAvg:null,dims:{strength:14.4,safety:11.8,waist:45.5,eff:47.9},score:28.2,grade:"预警",
+  diag:"Top20 贡献 84.1% 是全场最高,但这是\"伪集中\":41 款的盘子里 Top20 平均仅 <b>6.6 件</b>、爆款倍数 1.7×,高占比源于盘子小而非爆款强。",
+  adv:"视为测试期/边缘品类处理:收缩 SKU 或并入相邻品类,避免继续分散开发与运营资源。"}
+];
+
+const GRADE_COLOR = {"健康":"#2e9e5b","亚健康":"#e67e22","关注":"#d4a017","预警":"#c0392b"};
+const GRADE_BG    = {"健康":"#e8f5ee","亚健康":"#fdf1e7","关注":"#fbf4dd","预警":"#fdeceb"};
+const totSpu = DATA.reduce((a,c)=>a+c.spu,0), totSales = DATA.reduce((a,c)=>a+c.sales,0);
+const wScore = DATA.reduce((a,c)=>a+c.score*c.sales,0)/totSales;
+
+/* ---- KPI cards ---- */
+const kpis = [
+ {v: totSpu.toLocaleString()+" 款", l:"在售 SPU 总数", n:"9 个子品类"},
+ {v: totSales.toLocaleString()+" 件", l:"总销量", n:"平均 "+(totSales/totSpu).toFixed(1)+" 件/款"},
+ {v:"30.72%", l:"大盘 Top100 销量占比", n:"2.7% 的款贡献三成销量,大盘不依赖单一爆款"},
+ {v: wScore.toFixed(1)+" 分", l:"销量加权健康度总分", n:"整体健康,结构性问题集中在 SWD 与小品类"},
+ {v:"3 健康 · 3 亚健康 · 1 关注 · 2 预警", l:"品类健康度分布", n:"预警:SJBD / SHD"}
+];
+document.getElementById("kpis").innerHTML = kpis.map(k=>
+ `<div class="kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div><div class="n">${k.n}</div></div>`).join("");
+
+/* ---- Chart 1: score ranking ---- */
+const byScore = [...DATA].sort((a,b)=>a.score-b.score);
+echarts.init(document.getElementById("chartScore")).setOption({
+  animation:false,
+  grid:{left:60,right:70,top:10,bottom:24},
+  xAxis:{max:100,splitLine:{lineStyle:{color:"#f0f0f0"}},axisLabel:{color:"#8a8f99"}},
+  yAxis:{type:"category",data:byScore.map(c=>c.name),axisTick:{show:false},axisLine:{show:false},axisLabel:{color:"#333",fontWeight:600}},
+  tooltip:{trigger:"item",formatter:p=>{const c=byScore[p.dataIndex];
+    return `<b>${c.name}</b> ${c.grade}<br/>总分 ${c.score}<br/>爆款强度 ${c.dims.strength} · 集中度安全 ${c.dims.safety}<br/>腰部厚度 ${c.dims.waist} · 单款效率 ${c.dims.eff}`;}},
+  series:[{type:"bar",data:byScore.map(c=>({value:c.score,itemStyle:{color:GRADE_COLOR[c.grade],borderRadius:[0,4,4,0]}})),
+    barWidth:18,label:{show:true,position:"right",formatter:p=>`${p.value}  ${byScore[p.dataIndex].grade}`,color:"#555",fontSize:11}}]
+});
+
+/* ---- Chart 2: head/waist/tail structure ---- */
+const byTop20 = [...DATA].sort((a,b)=>b.top20-a.top20);
+const seg = (f)=>byTop20.map(f);
+echarts.init(document.getElementById("chartStruct")).setOption({
+  animation:false,
+  grid:{left:60,right:20,top:34,bottom:24},
+  legend:{top:0,itemWidth:12,itemHeight:12,textStyle:{fontSize:11,color:"#666"}},
+  tooltip:{trigger:"axis",axisPointer:{type:"shadow"},valueFormatter:v=>v.toFixed(1)+"%"},
+  xAxis:{max:100,axisLabel:{formatter:"{value}%",color:"#8a8f99"},splitLine:{lineStyle:{color:"#f0f0f0"}}},
+  yAxis:{type:"category",data:byTop20.map(c=>c.name),axisTick:{show:false},axisLine:{show:false},axisLabel:{color:"#333",fontWeight:600}},
+  series:[
+    {name:"Top20",type:"bar",stack:"s",barWidth:18,itemStyle:{color:"#c0392b"},data:seg(c=>+c.top20.toFixed(2))},
+    {name:"Top21~50",type:"bar",stack:"s",itemStyle:{color:"#e67e22"},data:seg(c=>+(c.top50-c.top20).toFixed(2))},
+    {name:"Top51~100",type:"bar",stack:"s",itemStyle:{color:"#f1c40f"},data:seg(c=>+(c.top100-c.top50).toFixed(2))},
+    {name:"长尾(100名以外)",type:"bar",stack:"s",itemStyle:{color:"#dfe3e8"},data:seg(c=>+(100-c.top100).toFixed(2))}
+  ]
+});
+
+/* ---- Chart 3: scatter SPU vs avg ---- */
+echarts.init(document.getElementById("chartScatter")).setOption({
+  animation:false,
+  grid:{left:50,right:20,top:30,bottom:40},
+  xAxis:{name:"SPU 数(款)",nameLocation:"middle",nameGap:26,nameTextStyle:{color:"#8a8f99",fontSize:11},
+    splitLine:{lineStyle:{color:"#f0f0f0"}},axisLabel:{color:"#8a8f99"}},
+  yAxis:{name:"单款平均销量(件/款)",nameTextStyle:{color:"#8a8f99",fontSize:11},
+    splitLine:{lineStyle:{color:"#f0f0f0"}},axisLabel:{color:"#8a8f99"}},
+  tooltip:{formatter:p=>{const c=DATA.find(d=>d.name===p.name);
+    return `<b>${c.name}</b> ${c.grade}<br/>SPU ${c.spu} 款 · 销量 ${c.sales} 件<br/>单款平均 ${c.avg} 件 · Top20 平均 ${c.t20avg} 件`;}},
+  series:[{type:"scatter",data:DATA.map(c=>({name:c.name,value:[c.spu,c.avg],
+    symbolSize:Math.sqrt(c.sales)/2.2+10,
+    itemStyle:{color:GRADE_COLOR[c.grade],opacity:.75},
+    label:{show:true,position:"top",formatter:c.name,color:"#333",fontSize:11,fontWeight:600}}))},
+   {type:"line",markLine:{silent:true,symbol:"none",
+     lineStyle:{type:"dashed",color:"#bbb"},
+     label:{color:"#999",fontSize:10,formatter:"全品类平均 6.3 件/款"},
+     data:[{yAxis:6.31}]},data:[]}]
+});
+
+/* ---- Table: dimension heatmap ---- */
+const heat = v => {
+  // 0 -> red, 60 -> yellow, 100 -> green
+  const stops=[[0,[253,236,235],[192,57,43]],[60,[251,244,221],[169,124,10]],[100,[232,245,238],[46,158,91]]];
+  const pick = v>=80?2:(v>=50?1:0);
+  const [_,bg,fg]=stops[pick];
+  return `background:rgb(${bg});color:rgb(${fg})`;
+};
+const rows = [...DATA].sort((a,b)=>b.score-a.score).map(c=>`
+  <tr><td><b>${c.name}</b></td>
+  <td><span class="cell" style="${heat(c.dims.strength)}">${c.dims.strength}</span></td>
+  <td><span class="cell" style="${heat(c.dims.safety)}">${c.dims.safety}</span></td>
+  <td><span class="cell" style="${heat(c.dims.waist)}">${c.dims.waist}</span></td>
+  <td><span class="cell" style="${heat(c.dims.eff)}">${c.dims.eff}</span></td>
+  <td><span class="cell" style="${heat(c.score)}">${c.score}</span></td>
+  <td><span class="gtag" style="color:${GRADE_COLOR[c.grade]};background:${GRADE_BG[c.grade]}">${c.grade}</span></td>
+  <td>${c.mult}×</td><td>${c.t20avg}</td><td>${c.avg}</td></tr>`).join("");
+document.getElementById("dimTable").innerHTML = `
+  <tr><th>品类</th><th>爆款强度<br>(30%)</th><th>集中度安全<br>(25%)</th><th>腰部厚度<br>(25%)</th><th>单款效率<br>(20%)</th><th>总分</th><th>等级</th><th>爆款倍数</th><th>Top20 均销<br>(件/款)</th><th>品类均销<br>(件/款)</th></tr>${rows}`;
+
+/* ---- Diagnosis cards ---- */
+document.getElementById("diag").innerHTML = [...DATA].sort((a,b)=>b.score-a.score).map(c=>`
+  <div class="dcard">
+    <div class="head"><span class="nm">${c.name} <span style="color:#aab;font-weight:400;font-size:11px">(${c.spu}款 / ${c.sales}件)</span></span>
+      <span class="gtag" style="color:${GRADE_COLOR[c.grade]};background:${GRADE_BG[c.grade]}">${c.score} · ${c.grade}</span></div>
+    <p>${c.diag}</p>
+    <div class="adv">${c.adv}</div>
+  </div>`).join("");
+</script>
+</body>
+</html>
