@@ -1,0 +1,50 @@
+.cascade {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.col {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.item:hover,
+.active {
+  background: #e6f4ff;
+  color: #1677ff;
+}
+
+.tplGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.verItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.muted {
+  color: rgba(0, 0, 0, 0.45);
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .cascade,
+  .tplGrid {
+    grid-template-columns: 1fr;
+  }
+}

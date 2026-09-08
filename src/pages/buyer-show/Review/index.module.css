@@ -1,0 +1,57 @@
+.split {
+  display: grid;
+  grid-template-columns: 280px minmax(480px, 1fr) 240px;
+  gap: 12px;
+  align-items: stretch;
+  min-height: calc(100vh - 120px);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.tree {
+  max-height: calc(100vh - 140px);
+  overflow: auto;
+}
+
+.card {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+.mainRow {
+  cursor: pointer;
+}
+
+.subRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.subRow:hover,
+.active {
+  background: #e6f4ff;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.name {
+  text-align: center;
+  color: rgba(0, 0, 0, 0.45);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.pending {
+  color: #1677ff;
+}

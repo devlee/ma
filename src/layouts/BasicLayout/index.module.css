@@ -1,0 +1,35 @@
+.shell {
+  min-height: 100%;
+}
+
+.sider {
+  border-right: 1px solid #f0f0f0;
+}
+
+.brand {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  font-weight: 600;
+  font-size: 15px;
+  color: #1677ff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  height: 56px;
+  padding-inline: 24px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  line-height: 56px;
+}
+
+.content {
+  margin: 16px;
+  min-height: calc(100vh - 88px);
+}

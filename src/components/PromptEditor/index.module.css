@@ -1,0 +1,23 @@
+.preview {
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 12px;
+  white-space: pre-wrap;
+  line-height: 1.7;
+  max-height: 280px;
+  overflow: auto;
+  color: #333;
+}
+
+.slot {
+  background: #fff1b8;
+  color: #ad6800;
+  padding: 0 3px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.editor {
+  margin-top: 8px;
+}

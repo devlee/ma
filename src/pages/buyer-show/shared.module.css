@@ -1,0 +1,85 @@
+.page {
+  padding-bottom: 24px;
+}
+
+.title {
+  margin-top: 0 !important;
+  margin-bottom: 4px !important;
+}
+
+.sub {
+  margin-left: 8px;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.notice {
+  margin-bottom: 12px;
+}
+
+.card {
+  margin-bottom: 12px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.spuLink {
+  color: #1677ff;
+  cursor: pointer;
+}
+
+.spuLink:hover {
+  color: #4096ff;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.slot {
+  border: 1px dashed #cfd8e3;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  background: #fafbfc;
+}
+
+.slotFilled {
+  border-style: solid;
+  border-color: #91caff;
+  background: #f0f7ff;
+}
+
+.refRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.refItem {
+  width: 110px;
+}
+
+.cap {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.rowError {
+  background: #fff2f0;
+}
+
+.unmatch {
+  background: #fffbe6;
+}
