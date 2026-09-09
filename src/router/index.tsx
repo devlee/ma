@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createHashRouter, Navigate } from 'react-router-dom';
 import { BasicLayout } from '@/layouts/BasicLayout';
 import TaskList from '@/pages/buyer-show/TaskList';
 import TaskClaim from '@/pages/buyer-show/TaskClaim';
@@ -9,7 +9,7 @@ import Review from '@/pages/buyer-show/Review';
 import Dashboard from '@/pages/buyer-show/Dashboard';
 import Config from '@/pages/buyer-show/Config';
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: '/',
     element: <BasicLayout />,
