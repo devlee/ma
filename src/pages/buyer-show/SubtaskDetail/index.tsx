@@ -7,6 +7,7 @@ import { StatusTag } from '@/components/StatusTag';
 import { useRole } from '@/contexts/RoleContext';
 import { useBuyerShow } from '@/store/buyerShow';
 import { colorMatchDisplay, image1Kind, isFreeBatchSub } from '@/utils/buyer-show';
+import { downloadOneResult } from '@/utils/zip-download';
 import shared from '../shared.module.css';
 import styles from './index.module.css';
 
@@ -46,10 +47,17 @@ export default function SubtaskDetail() {
     if (st === '待提交审核' || st === '审核失败') {
       return (
         <Space>
-          <Button onClick={() => act(regen, '状态已更新为【生图中】')}>重新生成</Button>
+          {!free ? <Button onClick={() => act(regen, '状态已更新为【生图中】')}>重新生成</Button> : null}
           {!free ? <Button onClick={() => act(() => store.markEditing(sub.id), '状态已更新为【修改中】')}>标记修改中</Button> : null}
           {free ? (
-            <Button type="primary" onClick={() => message.success('已下载该张结果（演示）')}>
+            <Button
+              type="primary"
+              onClick={() =>
+                downloadOneResult(sub)
+                  .then(() => message.success('已下载结果图'))
+                  .catch(() => message.error('下载失败'))
+              }
+            >
               下载结果
             </Button>
           ) : (
@@ -70,18 +78,9 @@ export default function SubtaskDetail() {
     if (st === '生图失败') {
       return (
         <Space>
-          <Button
-            type="primary"
-            onClick={() =>
-              act(() => {
-                store.retry(sub.id);
-                if (free) window.setTimeout(() => store.completeGen([sub.id]), 800);
-              }, '状态已更新为【生图中】')
-            }
-          >
-            重试
+          <Button type="primary" onClick={() => act(regen, '状态已更新为【生图中】')}>
+            重新生成
           </Button>
-          <Button onClick={() => act(regen, '状态已更新为【生图中】')}>重新生成</Button>
         </Space>
       );
     }
@@ -128,6 +127,25 @@ export default function SubtaskDetail() {
                 <ImagePlaceholder label="图1" kind={image1Kind(sub.image1.source)} size="md" source={sub.image1.source} />
                 <div className={shared.cap}>图1 · {free ? '商品图' : sub.image1.source}</div>
               </div>
+              {free ? (
+                <div className={shared.refItem}>
+                  <ImagePlaceholder
+                    label={
+                      sub.currentResultUrl
+                        ? `结果·${sub.angle}`
+                        : sub.status === '生图中'
+                          ? '生图中'
+                          : sub.status === '生图失败'
+                            ? '生图失败'
+                            : '无结果图'
+                    }
+                    kind="result"
+                    size="md"
+                    source="nano banana"
+                  />
+                  <div className={shared.cap}>结果图 · nano banana</div>
+                </div>
+              ) : null}
               <div className={shared.refItem}>
                 <ImagePlaceholder label={sub.image2.materialId || (free ? '无参考图' : '无图2')} kind="mat" size="md" />
                 <div className={shared.cap}>

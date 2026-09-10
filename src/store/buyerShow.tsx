@@ -216,12 +216,18 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
         freeBatches: [action.batch, ...state.freeBatches],
         subtasks: [...state.subtasks, ...action.items],
       };
-    case 'COMPLETE_GEN':
+    case 'COMPLETE_GEN': {
+      const pending = state.subtasks.filter((s) => action.ids.includes(s.id) && s.status === '生图中');
+      const firstPassFree = pending.filter((s) => s.source === '手动批量' && s.generateCount <= 1);
+      const demoFailId = firstPassFree.length >= 2 ? firstPassFree[firstPassFree.length - 1].id : undefined;
       return {
         ...state,
         subtasks: state.subtasks.map((s) => {
           if (!action.ids.includes(s.id) || s.status !== '生图中') return s;
           const at = nowLabel();
+          if (s.id === demoFailId) {
+            return appendLog({ ...s, status: '生图失败', currentResultUrl: undefined }, 'AI 生图失败，可重跑', 'system');
+          }
           return appendLog(
             {
               ...s,
@@ -234,6 +240,7 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
           );
         }),
       };
+    }
     case 'SUBMIT_SUBTASK': {
       const sub = state.subtasks.find((s) => s.id === action.id);
       const main = sub ? state.mainTasks.find((t) => t.id === sub.mainTaskId) : undefined;

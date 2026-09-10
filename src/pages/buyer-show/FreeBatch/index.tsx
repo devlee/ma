@@ -45,6 +45,7 @@ import {
   SPU_TABLE_TEMPLATE,
   type SpuImportRow,
 } from '@/utils/buyer-show';
+import { downloadFreeBatchResults } from '@/utils/zip-download';
 import shared from '../shared.module.css';
 
 interface SpuCard {
@@ -142,10 +143,7 @@ export default function FreeBatchPage() {
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [unifiedColor, setUnifiedColor] = useState('');
   const [activeBatchId, setActiveBatchId] = useState<string>();
-  const [adjKeys, setAdjKeys] = useState<string[]>([]);
-  const [adjTag, setAdjTag] = useState<CrowdTag | ''>('');
-  const [adjImg2, setAdjImg2] = useState('');
-  const [adjPrompt, setAdjPrompt] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
   const allSpuOptions = useMemo(
     () => spus.map((s) => ({ value: s.spu, label: `${s.spu} ${s.spuName}` })),
@@ -298,7 +296,6 @@ export default function FreeBatchPage() {
       const error =
         !r.color ||
         !r.angle ||
-        !r.tag ||
         !r.prompt ||
         r.img1Label.includes('请上传') ||
         (r.match === '未匹配' && !hexFilled);
@@ -359,8 +356,32 @@ export default function FreeBatchPage() {
   };
 
   const batchSubs = subtasks.filter((s) => isFreeBatchSub(s) && (!activeBatchId || s.batchId === activeBatchId));
-  const adjList = batchSubs.filter((s) => s.status === '待提交审核' || s.status === '审核失败' || s.status === '生图失败');
-  const readyCount = batchSubs.filter((s) => s.status === '待提交审核' || Boolean(s.currentResultUrl)).length;
+  const readySubs = batchSubs.filter((s) => Boolean(s.currentResultUrl));
+  const readyCount = readySubs.length;
+
+  const downloadReady = async () => {
+    if (!readySubs.length) {
+      message.warning('本批暂无成功结果图');
+      return;
+    }
+    setDownloading(true);
+    try {
+      await downloadFreeBatchResults(readySubs, `${activeBatchId ?? '本批'}-结果图.zip`);
+      message.success(`已下载 ${readySubs.length} 张，文件夹按 SPU 命名`);
+    } catch {
+      message.error('打包下载失败');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const rerunOne = (id: string) => {
+    const sub = batchSubs.find((s) => s.id === id);
+    if (sub?.status !== '生图失败') return;
+    store.regenerate(id);
+    window.setTimeout(() => store.completeGen([id]), 800);
+    message.success('已重跑，沿用原参数');
+  };
 
   const cardCols: ColumnsType<SpuCard> = [
     {
@@ -466,7 +487,11 @@ export default function FreeBatchPage() {
             <div>
               3. 描述词按 <b>品类 + 角度</b> 分层匹配；色值按 <b>材质 + 颜色</b> 从灵枢【AI颜色图配置】调取，填入描述词对应槽位。
             </div>
-            <div>4. 本页生图与下载，不进任务清单 / 审核 / CMS。</div>
+            <div>4. 本页生图与下载，不进任务清单 / 审核 / CMS。结果图展示在图1后面。仅【生图失败】可在行内重跑。</div>
+            <div>
+              5. 【下载本批结果】只打包已成功的结果图：<b>文件夹按 SPU 命名</b>，<b>图片按 SPU+颜色+角度 命名</b>
+              （如 SPU-1008630/SPU-1008630_黑色_正面.png）。
+            </div>
           </div>
         }
       />
@@ -755,11 +780,7 @@ export default function FreeBatchPage() {
               </Tag>
             ))}
             {isDesigner ? (
-              <Button
-                type="primary"
-                disabled={!readyCount}
-                onClick={() => message.success(`已打包下载 ${readyCount} 张（演示）`)}
-              >
+              <Button type="primary" disabled={!readyCount} loading={downloading} onClick={downloadReady}>
                 下载本批结果
               </Button>
             ) : null}
@@ -778,21 +799,40 @@ export default function FreeBatchPage() {
             { title: 'SPU', dataIndex: 'spu' },
             { title: '颜色', dataIndex: 'color' },
             { title: '角度', dataIndex: 'angle' },
+            {
+              title: '图1 商品图',
+              width: 140,
+              render: (_, s) => (
+                <ImagePlaceholder
+                  label={s.image1.url || '图1'}
+                  kind={image1Kind(s.image1.source)}
+                  size="md"
+                  source="商品图"
+                />
+              ),
+            },
+            {
+              title: '结果图',
+              width: 140,
+              render: (_, s) =>
+                s.currentResultUrl ? (
+                  <ImagePlaceholder label={`结果·${s.angle}`} kind="result" size="md" source="nano banana" />
+                ) : s.status === '生图中' ? (
+                  <span style={{ color: 'rgba(0,0,0,0.45)' }}>生图中</span>
+                ) : (
+                  '—'
+                ),
+            },
             { title: '状态', dataIndex: 'status', render: (v: string) => <StatusTag value={v} /> },
             { title: '生成次数', dataIndex: 'generateCount' },
-            {
-              title: '结果',
-              render: (_, s) =>
-                s.currentResultUrl ? <ImagePlaceholder label={`结果·${s.angle}`} kind="result" size="thumb" /> : '—',
-            },
             {
               title: '操作',
               render: (_, s) =>
                 isDesigner ? (
                   <Space>
                     <Link to={`/buyer-show/subtask/${s.id}`}>详情</Link>
-                    {s.status === '待提交审核' || s.status === '生图失败' ? (
-                      <Button type="link" size="small" onClick={() => store.regenerate(s.id)}>
+                    {s.status === '生图失败' ? (
+                      <Button type="link" size="small" onClick={() => rerunOne(s.id)}>
                         重新生成
                       </Button>
                     ) : null}
@@ -803,71 +843,6 @@ export default function FreeBatchPage() {
             },
           ]}
         />
-      </Card>
-
-      <Card
-        className={shared.card}
-        size="small"
-        title="批量调整"
-        extra={<span style={{ color: 'rgba(0,0,0,0.45)' }}>仅本页批次；不改颜色与角度。</span>}
-      >
-        <Table
-          rowKey="id"
-          size="small"
-          pagination={false}
-          scroll={{ x: 'max-content' }}
-          dataSource={adjList}
-          rowSelection={{ selectedRowKeys: adjKeys, onChange: (keys) => setAdjKeys(keys.map(String)) }}
-          columns={[
-            { title: '子任务编号', dataIndex: 'id' },
-            { title: 'SPU', dataIndex: 'spu' },
-            { title: '颜色', dataIndex: 'color' },
-            { title: '角度', dataIndex: 'angle' },
-            { title: '状态', dataIndex: 'status', render: (v: string) => <StatusTag value={v} /> },
-          ]}
-        />
-        <Space wrap style={{ marginTop: 12 }}>
-          <span>标签</span>
-          <LibraryTagSelect
-            value={adjTag}
-            materials={materials}
-            allowEmpty
-            emptyLabel="不修改"
-            style={{ width: 140 }}
-            onChange={setAdjTag}
-          />
-          <span>图2 参考图</span>
-          <MaterialPicker value={adjImg2} materials={materials} emptyLabel="不修改" onChange={setAdjImg2} />
-        </Space>
-        <Input.TextArea
-          style={{ marginTop: 12 }}
-          rows={3}
-          placeholder="留空则不修改描述词"
-          value={adjPrompt}
-          onChange={(e) => setAdjPrompt(e.target.value)}
-        />
-        {isDesigner ? (
-          <Button
-            type="primary"
-            style={{ marginTop: 12 }}
-            onClick={() => {
-              if (!adjKeys.length) {
-                message.warning('请勾选子任务');
-                return;
-              }
-              store.batchRegen(adjKeys, {
-                crowdTag: adjTag || undefined,
-                img2: adjImg2 || undefined,
-                prompt: adjPrompt.trim() || undefined,
-              });
-              window.setTimeout(() => store.completeGen(adjKeys), 800);
-              setAdjKeys([]);
-              message.success('已批量重新生成');
-            }}
-          >
-            批量重新生成
-          </Button>
-        ) : null}
       </Card>
 
       <Card size="small" className={shared.card} title="近 7 天批次">
@@ -886,7 +861,11 @@ export default function FreeBatchPage() {
             {
               title: '操作',
               render: (_, b) => (
-                <Button type="link" size="small" onClick={() => setActiveBatchId(b.id)}>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => setActiveBatchId(b.id)}
+                >
                   查看结果
                 </Button>
               ),
