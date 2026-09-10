@@ -11,8 +11,7 @@ import shared from '../shared.module.css';
 import styles from './index.module.css';
 
 export default function Review() {
-  const { role } = useRole();
-  const isOps = role === '运营';
+  const { isOps } = useRole();
   const store = useBuyerShow();
   const reviewMains = useMemo(
     () => store.mainTasks.filter((t) => t.status === '待审核' || t.status === '返修待审核' || t.status === '推送失败'),

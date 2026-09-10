@@ -23,6 +23,7 @@ import { MaterialPicker } from '@/components/MaterialPicker';
 import { QcCoverageTag } from '@/components/QcImageEditor';
 import { StatusTag } from '@/components/StatusTag';
 import { ANGLES } from '@/constants/buyer-show';
+import { MOCK_FREE_BATCH_ID } from '@/mocks/buyer-show';
 import { useRole } from '@/contexts/RoleContext';
 import { useBuyerShow } from '@/store/buyerShow';
 import type { Angle, CrowdTag, FreeBatch, Image1Source, SpuMaster, Subtask } from '@/types/buyer-show';
@@ -31,6 +32,7 @@ import {
   colorMatchDisplay,
   fillPromptFromSpu,
   image1Kind,
+  canRerunFreeBatch,
   isFreeBatchSub,
   isUploadedSlot,
   matchColor,
@@ -41,7 +43,6 @@ import {
   nowLabel,
   parseSpuTable,
   parseSpuTokens,
-  promptHasColorSlotFilled,
   SPU_TABLE_TEMPLATE,
   type SpuImportRow,
 } from '@/utils/buyer-show';
@@ -74,6 +75,18 @@ interface DraftRow {
   match: '匹配成功' | '未匹配';
   error: boolean;
   promptOpen: boolean;
+}
+
+interface RegenDraft {
+  color: string;
+  angle: Angle;
+  tag: CrowdTag;
+  img2: string;
+  img3Label: string;
+  img4Label: string;
+  prompt: string;
+  ver: string;
+  match: '匹配成功' | '未匹配';
 }
 
 function buildRows(
@@ -128,10 +141,9 @@ function buildRows(
 }
 
 export default function FreeBatchPage() {
-  const { role } = useRole();
-  const isDesigner = role === '买家秀设计';
+  const { actor, isLead } = useRole();
   const store = useBuyerShow();
-  const { spus, subtasks, freeBatches, materials, promptTemplates, colorDictionaries, materialDictionaries, currentDesigner } =
+  const { spus, subtasks, freeBatches, materials, categoryTags, promptTemplates, colorDictionaries, materialDictionaries } =
     store;
 
   const [search, setSearch] = useState('');
@@ -142,8 +154,10 @@ export default function FreeBatchPage() {
   const [cards, setCards] = useState<SpuCard[]>([]);
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [unifiedColor, setUnifiedColor] = useState('');
-  const [activeBatchId, setActiveBatchId] = useState<string>();
+  const [activeBatchId, setActiveBatchId] = useState<string>(MOCK_FREE_BATCH_ID);
   const [downloading, setDownloading] = useState(false);
+  const [regenSub, setRegenSub] = useState<Subtask | null>(null);
+  const [regenDraft, setRegenDraft] = useState<RegenDraft | null>(null);
 
   const allSpuOptions = useMemo(
     () => spus.map((s) => ({ value: s.spu, label: `${s.spu} ${s.spuName}` })),
@@ -292,13 +306,7 @@ export default function FreeBatchPage() {
 
   const create = () => {
     const checked = rows.map((r) => {
-      const hexFilled = promptHasColorSlotFilled(r.prompt);
-      const error =
-        !r.color ||
-        !r.angle ||
-        !r.prompt ||
-        r.img1Label.includes('请上传') ||
-        (r.match === '未匹配' && !hexFilled);
+      const error = !r.color || !r.angle || !r.prompt || r.img1Label.includes('请上传');
       return { ...r, error };
     });
     setRows(checked);
@@ -326,7 +334,7 @@ export default function FreeBatchPage() {
       status: '生图中',
       reviewRound: 0,
       generateCount: 1,
-      assignee: currentDesigner,
+      assignee: actor,
       createdAt: nowLabel(),
       image1: { url: r.img1Label, source: r.img1Source || '商品图' },
       image2: r.img2
@@ -339,12 +347,12 @@ export default function FreeBatchPage() {
       prompt: r.prompt,
       templateVersion: r.ver,
       colorMatchStatus: r.match,
-      operationLogs: [{ action: '自由批量创建，进入生图中', operator: currentDesigner, createdAt: nowLabel() }],
+      operationLogs: [{ action: '自由批量创建，进入生图中', operator: actor, createdAt: nowLabel() }],
     }));
     const batch: FreeBatch = {
       id: batchId,
       createdAt: items[0].createdAt,
-      operator: currentDesigner,
+      operator: actor,
       spus: [...new Set(ok.map((r) => r.spu))],
       imageCount: items.length,
     };
@@ -355,7 +363,22 @@ export default function FreeBatchPage() {
     window.setTimeout(() => store.completeGen(items.map((s) => s.id)), 800);
   };
 
-  const batchSubs = subtasks.filter((s) => isFreeBatchSub(s) && (!activeBatchId || s.batchId === activeBatchId));
+  const visibleBatches = useMemo(
+    () => (isLead ? freeBatches : freeBatches.filter((b) => b.operator === actor)),
+    [freeBatches, isLead, actor],
+  );
+
+  useEffect(() => {
+    if (visibleBatches.some((b) => b.id === activeBatchId)) return;
+    setActiveBatchId(visibleBatches[0]?.id ?? '');
+  }, [visibleBatches, activeBatchId]);
+
+  const batchSubs = subtasks.filter(
+    (s) =>
+      isFreeBatchSub(s) &&
+      (!activeBatchId || s.batchId === activeBatchId) &&
+      (isLead || s.assignee === actor),
+  );
   const readySubs = batchSubs.filter((s) => Boolean(s.currentResultUrl));
   const readyCount = readySubs.length;
 
@@ -375,12 +398,78 @@ export default function FreeBatchPage() {
     }
   };
 
-  const rerunOne = (id: string) => {
-    const sub = batchSubs.find((s) => s.id === id);
-    if (sub?.status !== '生图失败') return;
-    store.regenerate(id);
-    window.setTimeout(() => store.completeGen([id]), 800);
-    message.success('已重跑，沿用原参数');
+  const openRegen = (s: Subtask) => {
+    if (!canRerunFreeBatch(s.status)) return;
+    setRegenSub(s);
+    setRegenDraft({
+      color: s.color,
+      angle: s.angle,
+      tag: s.crowdTag ?? '',
+      img2: s.image2.materialId || s.image2.url || '',
+      img3Label: s.image3?.url || '',
+      img4Label: s.image4?.url || '',
+      prompt: s.prompt,
+      ver: s.templateVersion ?? '',
+      match: s.colorMatchStatus === '匹配成功' ? '匹配成功' : '未匹配',
+    });
+  };
+
+  const patchRegen = (next: Partial<RegenDraft>) => {
+    setRegenDraft((prev) => {
+      if (!prev || !regenSub) return prev;
+      const merged = { ...prev, ...next };
+      const colorChanged = next.color !== undefined && next.color !== prev.color;
+      const angleChanged = next.angle !== undefined && next.angle !== prev.angle;
+      if (colorChanged || angleChanged) {
+        const master = spus.find((x) => x.spu === regenSub.spu);
+        if (master) {
+          const p = fillPromptFromSpu(master, merged.angle, merged.color, promptTemplates, colorDictionaries);
+          merged.prompt = p.text;
+          merged.ver = p.ver;
+          merged.match = matchColor(merged.color, colorDictionaries);
+          if (angleChanged && !isUploadedSlot(merged.img3Label)) {
+            merged.img3Label = resolveQcImageOptional(master, merged.angle)?.label ?? '';
+          }
+        }
+      }
+      return merged;
+    });
+  };
+
+  const confirmRegen = () => {
+    if (!regenSub || !regenDraft) return;
+    if (!regenDraft.color.trim()) {
+      message.warning('请填写颜色');
+      return;
+    }
+    if (!regenDraft.prompt.trim()) {
+      message.warning('请填写描述词');
+      return;
+    }
+    const master = spus.find((x) => x.spu === regenSub.spu);
+    const img1 = master
+      ? resolveProductImage(master, regenDraft.angle)
+      : { source: regenSub.image1.source || '商品图', label: regenSub.image1.url };
+    store.regenerate(regenSub.id, {
+      color: regenDraft.color.trim(),
+      angle: regenDraft.angle,
+      crowdTag: regenDraft.tag,
+      prompt: regenDraft.prompt,
+      templateVersion: regenDraft.ver,
+      colorMatchStatus: regenDraft.match,
+      image1: { url: img1.label, source: img1.source || '商品图' },
+      image2: regenDraft.img2
+        ? isUploadedSlot(regenDraft.img2)
+          ? { url: regenDraft.img2, source: '手动' }
+          : { url: regenDraft.img2, materialId: regenDraft.img2, source: '参考图' }
+        : { url: '', source: '参考图' },
+      image3: regenDraft.img3Label ? { url: regenDraft.img3Label, source: '质检图' } : undefined,
+      image4: regenDraft.img4Label ? { url: regenDraft.img4Label, source: '其他' } : undefined,
+    });
+    window.setTimeout(() => store.completeGen([regenSub.id]), 800);
+    setRegenSub(null);
+    setRegenDraft(null);
+    message.success('已按当前配置重新生成');
   };
 
   const cardCols: ColumnsType<SpuCard> = [
@@ -469,7 +558,7 @@ export default function FreeBatchPage() {
     <div className={shared.page}>
       <Typography.Title level={4} className={shared.title}>
         自由批量生图
-        <span className={shared.sub}>设计 · 不接灵鉴 · 本页生图与下载</span>
+        <span className={shared.sub}>不接灵鉴 · 本页生图与下载</span>
       </Typography.Title>
       <Alert
         className={shared.notice}
@@ -485,12 +574,16 @@ export default function FreeBatchPage() {
               从【商品质检图】配置按角度拉取，有则带出，可替换上传；<b>图4 其他（选填）</b>手传。图2 / 图3 / 图4 都支持手动上传。
             </div>
             <div>
-              3. 描述词按 <b>品类 + 角度</b> 分层匹配；色值按 <b>材质 + 颜色</b> 从灵枢【AI颜色图配置】调取，填入描述词对应槽位。
+              3. 描述词按 <b>品类 + 角度</b> 分层匹配；色值按 <b>材质 + 颜色</b> 从灵枢【AI颜色图配置】调取，填入描述词对应槽位。词典未命中
+              <b>不拦截</b>，在描述词 <b>{'{色值}'}</b> 槽位手填即可。
             </div>
-            <div>4. 本页生图与下载，不进任务清单 / 审核 / CMS。结果图展示在图1后面。仅【生图失败】可在行内重跑。</div>
+            <div>4. 本页生图与下载，不进任务清单 / 审核 / CMS。结果图展示在图1后面。只要不是【生图中】，都可以编辑配置后重新生成。</div>
             <div>
               5. 【下载本批结果】只打包已成功的结果图：<b>文件夹按 SPU 命名</b>，<b>图片按 SPU+颜色+角度 命名</b>
               （如 SPU-1008630/SPU-1008630_黑色_正面.png）。
+            </div>
+            <div>
+              6. 设计、运营仅可见<b>自己创建</b>的批次；设计组长、运营组长可见全部。
             </div>
           </div>
         }
@@ -516,37 +609,33 @@ export default function FreeBatchPage() {
           </Button>
           <Button onClick={() => setImportOpen(true)}>表格导入</Button>
           <Button onClick={() => setPasteOpen(true)}>粘贴 SPU</Button>
-          {isDesigner ? (
-            <>
-              <Button onClick={() => setCards((prev) => prev.map((c) => ({ ...c, count: 4 })))}>全部默认 4 张</Button>
-              <Input
-                style={{ width: 140 }}
-                placeholder="统一填颜色"
-                value={unifiedColor}
-                onChange={(e) => setUnifiedColor(e.target.value)}
-              />
-              <Button
-                onClick={() => {
-                  if (!unifiedColor.trim()) {
-                    message.warning('请先填写统一颜色');
-                    return;
-                  }
-                  setRows((prev) =>
-                    prev.map((r) => {
-                      const color = unifiedColor.trim();
-                      const master = spus.find((s) => s.spu === r.spu);
-                      const p = master
-                        ? fillPromptFromSpu(master, r.angle, color, promptTemplates, colorDictionaries)
-                        : { text: r.prompt, ver: r.ver };
-                      return { ...r, color, prompt: p.text, ver: p.ver, match: matchColor(color, colorDictionaries) };
-                    }),
-                  );
-                }}
-              >
-                统一填颜色
-              </Button>
-            </>
-          ) : null}
+          <Button onClick={() => setCards((prev) => prev.map((c) => ({ ...c, count: 4 })))}>全部默认 4 张</Button>
+          <Input
+            style={{ width: 140 }}
+            placeholder="统一填颜色"
+            value={unifiedColor}
+            onChange={(e) => setUnifiedColor(e.target.value)}
+          />
+          <Button
+            onClick={() => {
+              if (!unifiedColor.trim()) {
+                message.warning('请先填写统一颜色');
+                return;
+              }
+              setRows((prev) =>
+                prev.map((r) => {
+                  const color = unifiedColor.trim();
+                  const master = spus.find((s) => s.spu === r.spu);
+                  const p = master
+                    ? fillPromptFromSpu(master, r.angle, color, promptTemplates, colorDictionaries)
+                    : { text: r.prompt, ver: r.ver };
+                  return { ...r, color, prompt: p.text, ver: p.ver, match: matchColor(color, colorDictionaries) };
+                }),
+              );
+            }}
+          >
+            统一填颜色
+          </Button>
         </Space>
         <Table
           style={{ marginTop: 12 }}
@@ -618,8 +707,8 @@ export default function FreeBatchPage() {
                 <LibraryTagSelect
                   value={r.tag}
                   materials={materials}
+                  categoryTags={categoryTags}
                   category={r.category}
-                  angle={r.angle}
                   style={{ width: 120 }}
                   onChange={(tag) => patchRow(r.key, { tag })}
                 />
@@ -754,12 +843,12 @@ export default function FreeBatchPage() {
           ]}
         />
         <div className={shared.toolbar} style={{ marginTop: 12 }}>
-          <span style={{ color: 'rgba(0,0,0,0.45)' }}>图1、颜色、描述词必填。图2 选库需先选标签，也可手传；图3/图4 可手传。</span>
-          {isDesigner ? (
-            <Button type="primary" onClick={create} disabled={!rows.length}>
-              批量创建
-            </Button>
-          ) : null}
+          <span style={{ color: 'rgba(0,0,0,0.45)' }}>
+            图1、颜色、描述词必填。色值未匹配不拦截，可在描述词色值槽手填。图2 选库需先选标签，也可手传；图3/图4 可手传。
+          </span>
+          <Button type="primary" onClick={create} disabled={!rows.length}>
+            批量创建
+          </Button>
         </div>
       </Card>
 
@@ -769,7 +858,7 @@ export default function FreeBatchPage() {
         title="本批次结果"
         extra={
           <Space>
-            {freeBatches.slice(0, 8).map((b) => (
+            {visibleBatches.slice(0, 8).map((b) => (
               <Tag
                 key={b.id}
                 color={b.id === activeBatchId ? 'blue' : undefined}
@@ -779,11 +868,9 @@ export default function FreeBatchPage() {
                 {b.id}
               </Tag>
             ))}
-            {isDesigner ? (
-              <Button type="primary" disabled={!readyCount} loading={downloading} onClick={downloadReady}>
-                下载本批结果
-              </Button>
-            ) : null}
+            <Button type="primary" disabled={!readyCount} loading={downloading} onClick={downloadReady}>
+              下载本批结果
+            </Button>
           </Space>
         }
       >
@@ -818,7 +905,9 @@ export default function FreeBatchPage() {
                 s.currentResultUrl ? (
                   <ImagePlaceholder label={`结果·${s.angle}`} kind="result" size="md" source="nano banana" />
                 ) : s.status === '生图中' ? (
-                  <span style={{ color: 'rgba(0,0,0,0.45)' }}>生图中</span>
+                  <ImagePlaceholder label="生图中" size="md" source="等待返回" />
+                ) : s.status === '生图失败' ? (
+                  <ImagePlaceholder label="生图失败" size="md" source="可重跑" />
                 ) : (
                   '—'
                 ),
@@ -827,19 +916,16 @@ export default function FreeBatchPage() {
             { title: '生成次数', dataIndex: 'generateCount' },
             {
               title: '操作',
-              render: (_, s) =>
-                isDesigner ? (
-                  <Space>
-                    <Link to={`/buyer-show/subtask/${s.id}`}>详情</Link>
-                    {s.status === '生图失败' ? (
-                      <Button type="link" size="small" onClick={() => rerunOne(s.id)}>
-                        重新生成
-                      </Button>
-                    ) : null}
-                  </Space>
-                ) : (
-                  <Link to={`/buyer-show/subtask/${s.id}`}>查看</Link>
-                ),
+              render: (_, s) => (
+                <Space>
+                  <Link to={`/buyer-show/subtask/${s.id}`}>详情</Link>
+                  {canRerunFreeBatch(s.status) ? (
+                    <Button type="link" size="small" onClick={() => openRegen(s)}>
+                      重新生成
+                    </Button>
+                  ) : null}
+                </Space>
+              ),
             },
           ]}
         />
@@ -850,7 +936,7 @@ export default function FreeBatchPage() {
           rowKey="id"
           size="small"
           pagination={false}
-          dataSource={freeBatches}
+          dataSource={visibleBatches}
           locale={{ emptyText: '暂无批次' }}
           columns={[
             { title: '批次', dataIndex: 'id' },
@@ -925,6 +1011,84 @@ export default function FreeBatchPage() {
           onChange={(e) => setPasteText(e.target.value)}
           placeholder={'换行、逗号或空格分隔，例如：\nSPU-1008640\nSPU-1008611'}
         />
+      </Modal>
+      <Modal
+        title={regenSub ? `重新生成 · ${regenSub.id}` : '重新生成'}
+        open={Boolean(regenSub && regenDraft)}
+        width={720}
+        okText="确认重新生成"
+        destroyOnClose
+        onCancel={() => {
+          setRegenSub(null);
+          setRegenDraft(null);
+        }}
+        onOk={confirmRegen}
+      >
+        {regenSub && regenDraft ? (
+          <>
+            <p className={shared.cap} style={{ textAlign: 'left', marginTop: 0 }}>
+              {regenSub.spu} · 当前状态 {regenSub.status}。图1仍从 SCM 按角度调取，不可上传。
+            </p>
+            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+              <Space wrap>
+                <span>颜色</span>
+                <Input
+                  style={{ width: 140 }}
+                  value={regenDraft.color}
+                  onChange={(e) => patchRegen({ color: e.target.value })}
+                />
+                <span>角度</span>
+                <Select
+                  style={{ width: 100 }}
+                  value={regenDraft.angle}
+                  options={ANGLES.map((a) => ({ value: a, label: a }))}
+                  onChange={(angle) => patchRegen({ angle })}
+                />
+                <span>标签</span>
+                <LibraryTagSelect
+                  value={regenDraft.tag}
+                  materials={materials}
+                  categoryTags={categoryTags}
+                  category={regenSub.category}
+                  onChange={(tag) => patchRegen({ tag, img2: isUploadedSlot(regenDraft.img2) ? regenDraft.img2 : '' })}
+                />
+                <StatusTag value={colorMatchDisplay(regenDraft.match, regenDraft.prompt)} />
+              </Space>
+              <div>
+                <div style={{ marginBottom: 4 }}>图2 参考图（选填）</div>
+                <MaterialPicker
+                  value={isUploadedSlot(regenDraft.img2) ? undefined : regenDraft.img2}
+                  materials={materials}
+                  category={regenSub.category}
+                  crowdTag={regenDraft.tag}
+                  angle={regenDraft.angle}
+                  emptyLabel="从参考图库选择"
+                  onChange={(img2) => patchRegen({ img2 })}
+                  style={{ width: 240 }}
+                />
+                <Upload
+                  showUploadList={false}
+                  beforeUpload={() => {
+                    patchRegen({ img2: `已上传参考图·${regenDraft.angle}` });
+                    return false;
+                  }}
+                >
+                  <Button type="link" size="small">
+                    上传/替换
+                  </Button>
+                </Upload>
+              </div>
+              <div>
+                <div style={{ marginBottom: 4 }}>描述词 · 模板 {regenDraft.ver}</div>
+                <Input.TextArea
+                  rows={4}
+                  value={regenDraft.prompt}
+                  onChange={(e) => patchRegen({ prompt: e.target.value })}
+                />
+              </div>
+            </Space>
+          </>
+        ) : null}
       </Modal>
     </div>
   );

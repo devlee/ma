@@ -1,7 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Segmented, Typography } from 'antd';
 import type { MenuProps } from 'antd';
-import { useRole, type AppRole } from '@/contexts/RoleContext';
+import { APP_ROLES, useRole, type AppRole } from '@/contexts/RoleContext';
 import { DEFAULT_SUBTASK_ID } from '@/constants/buyer-show';
 import styles from './index.module.css';
 
@@ -9,9 +9,9 @@ const { Header, Sider, Content } = Layout;
 
 const sampleSubtaskId = DEFAULT_SUBTASK_ID;
 
-function buildMenuItems(role: AppRole): MenuProps['items'] {
+function buildMenuItems(role: AppRole, isOps: boolean, isLead: boolean): MenuProps['items'] {
   const items: MenuProps['items'] = [];
-  if (role === '运营') {
+  if (isOps) {
     items.push({ key: '/buyer-show/qc-library', label: 'SPU 质检图库' });
   }
   items.push(
@@ -25,16 +25,16 @@ function buildMenuItems(role: AppRole): MenuProps['items'] {
         { key: '/buyer-show/produce-single', label: '单个制作' },
       ],
     },
-  );
-  if (role === '买家秀设计') {
-    items.push({ key: '/buyer-show/free-batch', label: '自由批量生图' });
-  }
-  items.push(
+    { key: '/buyer-show/free-batch', label: '自由批量生图' },
     { key: `/buyer-show/subtask/${sampleSubtaskId}`, label: '子任务详情页' },
-    { key: '/buyer-show/review', label: '审核页' },
-    { key: '/buyer-show/dashboard', label: '面板' },
-    { key: '/buyer-show/config', label: '配置管理' },
   );
+  if (isOps) {
+    items.push({ key: '/buyer-show/review', label: '审核页' });
+  }
+  items.push({ key: '/buyer-show/dashboard', label: '面板' });
+  if (isLead) {
+    items.push({ key: '/buyer-show/config', label: '配置管理' });
+  }
   return items;
 }
 
@@ -46,7 +46,7 @@ function resolveSelectedKey(pathname: string) {
 }
 
 export function BasicLayout() {
-  const { role, setRole } = useRole();
+  const { role, setRole, actor, isOps, isLead } = useRole();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -58,7 +58,7 @@ export function BasicLayout() {
           mode="inline"
           selectedKeys={[resolveSelectedKey(location.pathname)]}
           defaultOpenKeys={['produce']}
-          items={buildMenuItems(role)}
+          items={buildMenuItems(role, isOps, isLead)}
           onClick={({ key }) => {
             if (key.startsWith('/')) {
               navigate(key);
@@ -69,11 +69,8 @@ export function BasicLayout() {
       <Layout>
         <Header className={styles.header}>
           <Typography.Text type="secondary">当前角色</Typography.Text>
-          <Segmented<AppRole>
-            value={role}
-            options={['运营', '买家秀设计']}
-            onChange={setRole}
-          />
+          <Segmented<AppRole> size="small" value={role} options={APP_ROLES} onChange={setRole} />
+          <Typography.Text type="secondary">{actor}</Typography.Text>
         </Header>
         <Content className={styles.content}>
           <Outlet />

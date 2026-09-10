@@ -11,13 +11,12 @@ import { resolveTaskQcView } from '@/utils/buyer-show';
 import shared from '../shared.module.css';
 
 export default function TaskClaim() {
-  const { role } = useRole();
-  const canClaim = role === '买家秀设计';
-  const { mainTasks, findSpu, currentDesigner, claimTask } = useBuyerShow();
+  const { isDesigner: canClaim, actor } = useRole();
+  const { mainTasks, findSpu, claimTask } = useBuyerShow();
 
   const list = mainTasks.filter((t) => {
     if (t.status === '待领取') return true;
-    if ((t.status === '制作中' || t.status === '返修中') && t.assignee === currentDesigner) return true;
+    if ((t.status === '制作中' || t.status === '返修中') && t.assignee === actor) return true;
     return false;
   });
 
@@ -84,7 +83,7 @@ export default function TaskClaim() {
               type="primary"
               size="small"
               onClick={() => {
-                claimTask(t.id);
+                claimTask(t.id, actor);
                 message.success('已认领，主任务进入【制作中】');
               }}
             >

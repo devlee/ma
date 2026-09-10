@@ -39,6 +39,6 @@ src/
   store/              买家秀内存 store（认领 / 分发 / 审核等流转）
   types/              领域类型（对齐需求第 8 / 4.3 / 6 / 11 节）
   mocks/              示例数据
-  contexts/           角色 Context（运营 / 买家秀设计）
+  contexts/           角色 Context（运营 / 运营组长 / 设计 / 设计组长）
   styles/             全局样式
 ```

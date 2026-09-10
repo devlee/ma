@@ -10,22 +10,22 @@ import shared from '../shared.module.css';
 import styles from './index.module.css';
 
 export default function Dashboard() {
-  const { role } = useRole();
-  const { currentDesigner, spus, mainTasks, subtasks } = useBuyerShow();
-  const isDesigner = role === '买家秀设计';
+  const { isDesigner, isLead, actor } = useRole();
+  const { spus, mainTasks, subtasks } = useBuyerShow();
+  const onlySelf = isDesigner && !isLead;
   const D = mockDashboard;
-  const [maker, setMaker] = useState(isDesigner ? currentDesigner : '');
+  const [maker, setMaker] = useState(onlySelf ? actor : '');
 
   const makers = useMemo(
-    () => (isDesigner ? D.makers.filter((m) => m.name === currentDesigner) : D.makers.filter((m) => !maker || m.name === maker)),
-    [D.makers, isDesigner, currentDesigner, maker],
+    () => (onlySelf ? D.makers.filter((m) => m.name === actor) : D.makers.filter((m) => !maker || m.name === maker)),
+    [D.makers, onlySelf, actor, maker],
   );
 
   return (
     <div className={shared.page}>
       <Typography.Title level={4} className={shared.title}>
         面板
-        <span className={shared.sub}>{isDesigner ? '买家秀设计 · 仅可见自己的数据' : '运营 · 全量数据'}</span>
+        <span className={shared.sub}>{onlySelf ? '设计 · 仅可见自己的数据' : '全量数据'}</span>
       </Typography.Title>
 
       <Card size="small" className={shared.card}>
@@ -38,9 +38,9 @@ export default function Dashboard() {
           <Select allowClear placeholder="全部" style={{ width: 110 }} options={CATEGORIES.map((c) => ({ value: c, label: c }))} />
           <span>制作人</span>
           <Select
-            allowClear={!isDesigner}
-            disabled={isDesigner}
-            value={isDesigner ? currentDesigner : maker || undefined}
+            allowClear={!onlySelf}
+            disabled={onlySelf}
+            value={onlySelf ? actor : maker || undefined}
             placeholder="全部"
             style={{ width: 110 }}
             options={DESIGNERS.map((c) => ({ value: c, label: c }))}

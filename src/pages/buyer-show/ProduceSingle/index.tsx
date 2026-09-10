@@ -29,15 +29,14 @@ import {
 import shared from '../shared.module.css';
 
 export default function ProduceSingle() {
-  const { role } = useRole();
-  const isDesigner = role === '买家秀设计';
+  const { isDesigner, actor } = useRole();
   const store = useBuyerShow();
-  const { mainTasks, subtasks, materials, promptTemplates, colorDictionaries, currentDesigner } = store;
+  const { mainTasks, subtasks, materials, categoryTags, promptTemplates, colorDictionaries } = store;
   const mains = useMemo(
     () => mainTasks.filter((t) => t.produceMode === '单个制作' && (t.status === '制作中' || t.status === '返修中')),
     [mainTasks],
   );
-  const prefer = mains.find((t) => t.assignee === currentDesigner) ?? mains[0];
+  const prefer = mains.find((t) => t.assignee === actor) ?? mains[0];
   const [mainId, setMainId] = useState(prefer?.id ?? '');
   const current = mains.find((t) => t.id === mainId) ?? prefer;
   const children = current ? subsOf(subtasks, current.id) : [];
@@ -202,7 +201,7 @@ export default function ProduceSingle() {
               status: '生图中',
               reviewRound: 0,
               generateCount: 1,
-              assignee: currentDesigner,
+              assignee: actor,
               createdAt: nowLabel(),
               image1: { url: img1?.label ?? '', source: img1?.source ?? '手动' },
               image2: isUploadedSlot(values.img2)
@@ -216,7 +215,7 @@ export default function ProduceSingle() {
               prompt: values.prompt,
               templateVersion: tpl?.ver,
               colorMatchStatus: match,
-              operationLogs: [{ action: '创建子任务，进入生图中', operator: currentDesigner, createdAt: nowLabel() }],
+              operationLogs: [{ action: '创建子任务，进入生图中', operator: actor, createdAt: nowLabel() }],
             },
           ]);
           setOpen(false);
@@ -266,8 +265,8 @@ export default function ProduceSingle() {
           >
             <LibraryTagSelect
               materials={materials}
+              categoryTags={categoryTags}
               category={current?.category}
-              angle={angle}
               allowEmpty
             />
           </Form.Item>

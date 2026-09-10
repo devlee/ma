@@ -237,6 +237,14 @@ export interface Subtask {
   operationLogs?: OperationLog[];
 }
 
+/** 图库标签（按品类管理，第 11.1 节） */
+export interface CategoryTag {
+  id: string;
+  category: string;
+  name: CrowdTag;
+  status: EnableStatus;
+}
+
 /** 素材库条目（第 11.1 节） */
 export interface Material {
   id: string;

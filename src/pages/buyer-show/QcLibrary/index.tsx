@@ -23,8 +23,7 @@ interface Filters {
 }
 
 export default function QcLibrary() {
-  const { role } = useRole();
-  const isOps = role === '运营';
+  const { isOps } = useRole();
   const { spus, mainTasks, confirmConsistency, revokeConsistency } = useBuyerShow();
   const [searchParams] = useSearchParams();
   const presetSpu = searchParams.get('spu') ?? '';

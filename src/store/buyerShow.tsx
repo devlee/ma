@@ -1,7 +1,10 @@
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react';
 import { CURRENT_DESIGNER, CURRENT_OPERATOR } from '@/constants/buyer-show';
 import {
+  mockCategoryTags,
   mockColorDictionaries,
+  mockFreeBatches,
+  mockFreeBatchSubs,
   mockMainTasks,
   mockMaterialDictionaries,
   mockMaterials,
@@ -12,8 +15,10 @@ import {
 } from '@/mocks/buyer-show';
 import type {
   Angle,
+  CategoryTag,
   ColorDictionary,
   CrowdTag,
+  EnableStatus,
   FreeBatch,
   InspectionImages,
   MainTask,
@@ -27,6 +32,7 @@ import type {
 } from '@/types/buyer-show';
 import {
   canConfirmConsistency,
+  categoryHasTag,
   deriveMainAfterRound,
   deriveQcStatus,
   nowLabel,
@@ -40,6 +46,7 @@ export interface BuyerShowState {
   subtasks: Subtask[];
   freeBatches: FreeBatch[];
   materials: Material[];
+  categoryTags: CategoryTag[];
   promptTemplates: PromptTemplate[];
   colorDictionaries: ColorDictionary[];
   materialDictionaries: MaterialDictionary[];
@@ -49,9 +56,10 @@ export interface BuyerShowState {
 const initialState: BuyerShowState = {
   spus: mockSpus,
   mainTasks: mockMainTasks,
-  subtasks: mockSubtasks,
-  freeBatches: [],
+  subtasks: [...mockSubtasks, ...mockFreeBatchSubs],
+  freeBatches: mockFreeBatches,
   materials: mockMaterials,
+  categoryTags: mockCategoryTags,
   promptTemplates: mockPromptTemplates,
   colorDictionaries: mockColorDictionaries,
   materialDictionaries: mockMaterialDictionaries,
@@ -90,7 +98,7 @@ type Action =
   | { type: 'CREATE_FREE_BATCH'; batch: FreeBatch; items: Subtask[] }
   | { type: 'COMPLETE_GEN'; ids: string[] }
   | { type: 'SUBMIT_SUBTASK'; id: string }
-  | { type: 'REGENERATE'; id: string }
+  | { type: 'REGENERATE'; id: string; patch?: Partial<Subtask> }
   | { type: 'MARK_EDITING'; id: string }
   | { type: 'UPLOAD_OVERRIDE'; id: string }
   | { type: 'RETRY'; id: string }
@@ -103,8 +111,12 @@ type Action =
   | { type: 'SAVE_REMARK'; id: string; remark: string }
   | { type: 'TOGGLE_MATERIAL'; id: string }
   | { type: 'ADD_MATERIAL'; item: Material }
+  | { type: 'ADD_CATEGORY_TAG'; item: CategoryTag }
+  | { type: 'TOGGLE_CATEGORY_TAG'; id: string }
   | { type: 'SAVE_TEMPLATE'; category: string; angle: Angle; content: string }
   | { type: 'ENABLE_TEMPLATE'; category: string; angle: Angle; version: string }
+  | { type: 'SET_TEMPLATE_STATUS'; id: string; status: EnableStatus }
+  | { type: 'DELETE_TEMPLATE'; id: string }
   | { type: 'ADD_COLOR'; item: ColorDictionary };
 
 function reducer(state: BuyerShowState, action: Action): BuyerShowState {
@@ -256,11 +268,17 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
     case 'REGENERATE': {
       const sub = state.subtasks.find((s) => s.id === action.id);
       if (!sub) return state;
+      const merged = { ...sub, ...action.patch };
       return {
         ...state,
         subtasks: patchSub(state.subtasks, action.id, {
           ...appendLog(
-            { ...sub, status: '生图中', generateCount: sub.generateCount + 1 },
+            {
+              ...merged,
+              status: '生图中',
+              generateCount: sub.generateCount + 1,
+              currentResultUrl: undefined,
+            },
             '重新生成',
             sub.assignee,
           ),
@@ -384,8 +402,36 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
           m.id === action.id ? { ...m, status: m.status === '启用' ? '停用' : '启用' } : m,
         ),
       };
-    case 'ADD_MATERIAL':
-      return { ...state, materials: [action.item, ...state.materials] };
+    case 'ADD_MATERIAL': {
+      const exists = categoryHasTag(state.categoryTags, action.item.category, action.item.crowdTag);
+      return {
+        ...state,
+        materials: [action.item, ...state.materials],
+        categoryTags: exists
+          ? state.categoryTags
+          : [
+              {
+                id: `TAG-${Date.now().toString().slice(-6)}`,
+                category: action.item.category,
+                name: action.item.crowdTag,
+                status: '启用',
+              },
+              ...state.categoryTags,
+            ],
+      };
+    }
+    case 'ADD_CATEGORY_TAG': {
+      const name = action.item.name.trim();
+      if (!name || categoryHasTag(state.categoryTags, action.item.category, name)) return state;
+      return { ...state, categoryTags: [{ ...action.item, name }, ...state.categoryTags] };
+    }
+    case 'TOGGLE_CATEGORY_TAG':
+      return {
+        ...state,
+        categoryTags: state.categoryTags.map((t) =>
+          t.id === action.id ? { ...t, status: t.status === '启用' ? '停用' : '启用' } : t,
+        ),
+      };
     case 'SAVE_TEMPLATE': {
       const at = nowLabel();
       const hit = state.promptTemplates.some((t) => t.category === action.category && t.angle === action.angle);
@@ -427,6 +473,15 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
           return { ...t, version: ver.version, content: ver.content, status: '启用' };
         }),
       };
+    case 'SET_TEMPLATE_STATUS':
+      return {
+        ...state,
+        promptTemplates: state.promptTemplates.map((t) =>
+          t.id === action.id ? { ...t, status: action.status } : t,
+        ),
+      };
+    case 'DELETE_TEMPLATE':
+      return { ...state, promptTemplates: state.promptTemplates.filter((t) => t.id !== action.id) };
     case 'ADD_COLOR':
       return { ...state, colorDictionaries: [...state.colorDictionaries, action.item] };
     default:
@@ -447,12 +502,12 @@ interface BuyerShowContextValue extends BuyerShowState {
   revokeConsistency: (spu: string) => void;
   dispatchTasks: (ids: string[], produceMode: ProduceMode) => void;
   cancelTask: (id: string, reason: string) => void;
-  claimTask: (id: string) => void;
+  claimTask: (id: string, designer?: string) => void;
   createSubtasks: (items: Subtask[]) => void;
   createFreeBatch: (batch: FreeBatch, items: Subtask[]) => void;
   completeGen: (ids: string[]) => void;
   submitSubtask: (id: string) => void;
-  regenerate: (id: string) => void;
+  regenerate: (id: string, patch?: Partial<Subtask>) => void;
   markEditing: (id: string) => void;
   uploadOverride: (id: string) => void;
   retry: (id: string) => void;
@@ -465,8 +520,12 @@ interface BuyerShowContextValue extends BuyerShowState {
   saveRemark: (id: string, remark: string) => void;
   toggleMaterial: (id: string) => void;
   addMaterial: (item: Material) => void;
+  addCategoryTag: (item: CategoryTag) => boolean;
+  toggleCategoryTag: (id: string) => void;
   saveTemplate: (category: string, angle: Angle, content: string) => void;
   enableTemplate: (category: string, angle: Angle, version: string) => void;
+  setTemplateStatus: (id: string, status: EnableStatus) => void;
+  deleteTemplate: (id: string) => void;
   addColor: (item: ColorDictionary) => void;
 }
 
@@ -496,12 +555,12 @@ export function BuyerShowProvider({ children }: { children: ReactNode }) {
       revokeConsistency: (spu) => dispatch({ type: 'REVOKE_CONSISTENCY', spu, operator: CURRENT_OPERATOR }),
       dispatchTasks: (ids, produceMode) => dispatch({ type: 'DISPATCH', ids, produceMode }),
       cancelTask: (id, reason) => dispatch({ type: 'CANCEL', id, reason }),
-      claimTask: (id) => dispatch({ type: 'CLAIM', id, designer: CURRENT_DESIGNER }),
+      claimTask: (id, designer) => dispatch({ type: 'CLAIM', id, designer: designer ?? CURRENT_DESIGNER }),
       createSubtasks: (items) => dispatch({ type: 'CREATE_SUBTASKS', items }),
       createFreeBatch: (batch, items) => dispatch({ type: 'CREATE_FREE_BATCH', batch, items }),
       completeGen: (ids) => dispatch({ type: 'COMPLETE_GEN', ids }),
       submitSubtask: (id) => dispatch({ type: 'SUBMIT_SUBTASK', id }),
-      regenerate: (id) => dispatch({ type: 'REGENERATE', id }),
+      regenerate: (id, patch) => dispatch({ type: 'REGENERATE', id, patch }),
       markEditing: (id) => dispatch({ type: 'MARK_EDITING', id }),
       uploadOverride: (id) => dispatch({ type: 'UPLOAD_OVERRIDE', id }),
       retry: (id) => dispatch({ type: 'RETRY', id }),
@@ -514,8 +573,17 @@ export function BuyerShowProvider({ children }: { children: ReactNode }) {
       saveRemark: (id, remark) => dispatch({ type: 'SAVE_REMARK', id, remark }),
       toggleMaterial: (id) => dispatch({ type: 'TOGGLE_MATERIAL', id }),
       addMaterial: (item) => dispatch({ type: 'ADD_MATERIAL', item }),
+      addCategoryTag: (item) => {
+        const name = item.name.trim();
+        if (!name || categoryHasTag(state.categoryTags, item.category, name)) return false;
+        dispatch({ type: 'ADD_CATEGORY_TAG', item: { ...item, name } });
+        return true;
+      },
+      toggleCategoryTag: (id) => dispatch({ type: 'TOGGLE_CATEGORY_TAG', id }),
       saveTemplate: (category, angle, content) => dispatch({ type: 'SAVE_TEMPLATE', category, angle, content }),
       enableTemplate: (category, angle, version) => dispatch({ type: 'ENABLE_TEMPLATE', category, angle, version }),
+      setTemplateStatus: (id, status) => dispatch({ type: 'SET_TEMPLATE_STATUS', id, status }),
+      deleteTemplate: (id) => dispatch({ type: 'DELETE_TEMPLATE', id }),
       addColor: (item) => dispatch({ type: 'ADD_COLOR', item }),
     }),
     [state],

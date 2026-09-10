@@ -20,7 +20,6 @@ import {
   matchColor,
   nextSubtaskId,
   nowLabel,
-  promptHasColorSlotFilled,
   resolveImage1,
   resolveTaskQcView,
   shouldShowMainSubmit,
@@ -47,10 +46,9 @@ interface DraftRow {
 }
 
 export default function ProduceBatch() {
-  const { role } = useRole();
-  const isDesigner = role === '买家秀设计';
+  const { isDesigner, actor } = useRole();
   const store = useBuyerShow();
-  const { mainTasks, subtasks, materials, promptTemplates, colorDictionaries, currentDesigner } = store;
+  const { mainTasks, subtasks, materials, categoryTags, promptTemplates, colorDictionaries } = store;
   const [selectedMains, setSelectedMains] = useState<string[]>([]);
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [adjKeys, setAdjKeys] = useState<string[]>([]);
@@ -62,9 +60,9 @@ export default function ProduceBatch() {
   const myMains = useMemo(
     () =>
       mainTasks.filter(
-        (t) => t.status === '制作中' && t.assignee === currentDesigner && t.produceMode === '批量制作',
+        (t) => t.status === '制作中' && t.assignee === actor && t.produceMode === '批量制作',
       ),
-    [mainTasks, currentDesigner],
+    [mainTasks, actor],
   );
 
   const createdCount = (id: string) => subsOf(subtasks, id).length;
@@ -142,15 +140,13 @@ export default function ProduceBatch() {
 
   const create = () => {
     const checked = rows.map((r) => {
-      const hexFilled = promptHasColorSlotFilled(r.prompt);
       const error =
         !r.color ||
         !r.angle ||
         !r.img2 ||
         (!isUploadedSlot(r.img2) && !r.tag) ||
         !r.prompt ||
-        (r.img1Source === '手动' && r.img1Label.includes('请手动')) ||
-        (r.match === '未匹配' && !hexFilled);
+        (r.img1Source === '手动' && r.img1Label.includes('请手动'));
       return { ...r, error };
     });
     setRows(checked);
@@ -173,7 +169,7 @@ export default function ProduceBatch() {
         status: '生图中',
         reviewRound: 0,
         generateCount: 1,
-        assignee: currentDesigner,
+        assignee: actor,
         createdAt: nowLabel(),
         image1: { url: r.img1Label, source: r.img1Source },
         image2: isUploadedSlot(r.img2)
@@ -187,7 +183,7 @@ export default function ProduceBatch() {
         prompt: r.prompt,
         templateVersion: r.ver,
         colorMatchStatus: r.match,
-        operationLogs: [{ action: '创建子任务，进入生图中', operator: currentDesigner, createdAt: nowLabel() }],
+        operationLogs: [{ action: '创建子任务，进入生图中', operator: actor, createdAt: nowLabel() }],
       };
     });
     store.createSubtasks(items);
@@ -197,10 +193,10 @@ export default function ProduceBatch() {
 
   const adjList = subtasks.filter((s) => {
     const main = mainTasks.find((t) => t.id === s.mainTaskId);
-    return main?.assignee === currentDesigner && (s.status === '待提交审核' || s.status === '审核失败');
+    return main?.assignee === actor && (s.status === '待提交审核' || s.status === '审核失败');
   });
 
-  const waitMains = mainTasks.filter((t) => t.assignee === currentDesigner && shouldShowMainSubmit(t, subsOf(subtasks, t.id)));
+  const waitMains = mainTasks.filter((t) => t.assignee === actor && shouldShowMainSubmit(t, subsOf(subtasks, t.id)));
 
   const mainCols: ColumnsType<MainTask> = [
     { title: '任务编号', dataIndex: 'id' },
@@ -330,8 +326,8 @@ export default function ProduceBatch() {
                   <LibraryTagSelect
                     value={r.tag}
                     materials={materials}
+                    categoryTags={categoryTags}
                     category={t?.category}
-                    angle={r.angle}
                     style={{ width: 120 }}
                     onChange={(tag) => patchRow(r.key, { tag })}
                   />
@@ -459,7 +455,7 @@ export default function ProduceBatch() {
         />
         <div className={shared.toolbar} style={{ marginTop: 12 }}>
           <span style={{ color: 'rgba(0,0,0,0.45)' }}>
-            色值未匹配的行允许提交，但描述词中的色值槽位必须已被人工填写。可一键【存入词典】。
+            色值未匹配不拦截，可在描述词色值槽手填后继续创建。可一键【存入词典】。
           </span>
           {isDesigner ? (
             <Button type="primary" onClick={create} disabled={!rows.length}>
@@ -509,6 +505,7 @@ export default function ProduceBatch() {
           <LibraryTagSelect
             value={adjTag}
             materials={materials}
+            categoryTags={categoryTags}
             allowEmpty
             emptyLabel="不修改"
             style={{ width: 140 }}

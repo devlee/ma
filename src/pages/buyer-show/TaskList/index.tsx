@@ -53,8 +53,7 @@ interface Filters {
 }
 
 export default function TaskList() {
-  const { role } = useRole();
-  const isOps = role === '运营';
+  const { isOps } = useRole();
   const { mainTasks, spus, findSpu, setColor, setProduceMode, dispatchTasks, cancelTask } = useBuyerShow();
   const [form] = Form.useForm<Filters>();
   const [applied, setApplied] = useState<Filters>({});

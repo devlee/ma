@@ -6,15 +6,14 @@ import { PromptEditor } from '@/components/PromptEditor';
 import { StatusTag } from '@/components/StatusTag';
 import { useRole } from '@/contexts/RoleContext';
 import { useBuyerShow } from '@/store/buyerShow';
-import { colorMatchDisplay, image1Kind, isFreeBatchSub } from '@/utils/buyer-show';
+import { canRerunFreeBatch, colorMatchDisplay, image1Kind, isFreeBatchSub } from '@/utils/buyer-show';
 import { downloadOneResult } from '@/utils/zip-download';
 import shared from '../shared.module.css';
 import styles from './index.module.css';
 
 export default function SubtaskDetail() {
   const { id } = useParams();
-  const { role } = useRole();
-  const isDesigner = role === '买家秀设计';
+  const { isDesigner, isLead, actor } = useRole();
   const store = useBuyerShow();
   const sub = store.findSub(id ?? '');
   const main = sub ? store.findMain(sub.mainTaskId) : undefined;
@@ -31,6 +30,14 @@ export default function SubtaskDetail() {
     );
   }
 
+  if (free && !isLead && sub.assignee !== actor) {
+    return (
+      <div className={shared.page}>
+        <Empty description="只能查看自己创建的自由批量任务" />
+      </div>
+    );
+  }
+
   const act = (fn: () => void, msg: string) => {
     fn();
     message.success(msg);
@@ -42,16 +49,19 @@ export default function SubtaskDetail() {
   };
 
   const ops = () => {
-    if (!isDesigner) return <span style={{ color: 'rgba(0,0,0,0.45)' }}>当前角色仅可查看</span>;
+    if (!free && !isDesigner) return <span style={{ color: 'rgba(0,0,0,0.45)' }}>当前角色仅可查看</span>;
     const st = sub.status;
-    if (st === '待提交审核' || st === '审核失败') {
+    if (free) {
+      if (st === '生图中') return <span style={{ color: 'rgba(0,0,0,0.45)' }}>生图中，完成后可回自由批量页改配置再生成</span>;
       return (
         <Space>
-          {!free ? <Button onClick={() => act(regen, '状态已更新为【生图中】')}>重新生成</Button> : null}
-          {!free ? <Button onClick={() => act(() => store.markEditing(sub.id), '状态已更新为【修改中】')}>标记修改中</Button> : null}
-          {free ? (
+          {canRerunFreeBatch(st) ? (
+            <Button type="primary" onClick={() => act(regen, '已按当前配置重新生成')}>
+              重新生成
+            </Button>
+          ) : null}
+          {sub.currentResultUrl ? (
             <Button
-              type="primary"
               onClick={() =>
                 downloadOneResult(sub)
                   .then(() => message.success('已下载结果图'))
@@ -60,11 +70,18 @@ export default function SubtaskDetail() {
             >
               下载结果
             </Button>
-          ) : (
-            <Button type="primary" onClick={() => act(() => store.submitSubtask(sub.id), '已提交审核')}>
-              提交审核
-            </Button>
-          )}
+          ) : null}
+        </Space>
+      );
+    }
+    if (st === '待提交审核' || st === '审核失败') {
+      return (
+        <Space>
+          <Button onClick={() => act(regen, '状态已更新为【生图中】')}>重新生成</Button>
+          <Button onClick={() => act(() => store.markEditing(sub.id), '状态已更新为【修改中】')}>标记修改中</Button>
+          <Button type="primary" onClick={() => act(() => store.submitSubtask(sub.id), '已提交审核')}>
+            提交审核
+          </Button>
         </Space>
       );
     }

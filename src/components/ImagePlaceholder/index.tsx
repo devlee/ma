@@ -1,7 +1,7 @@
 import styles from './index.module.css';
 
 export type PlaceholderKind = 'qc' | 'prod' | 'result' | 'mat' | '';
-export type PlaceholderSize = 'sm' | 'md' | 'lg' | 'thumb' | 'fluid';
+export type PlaceholderSize = 'sm' | 'md' | 'lg' | 'thumb' | 'fluid' | 'gallery';
 
 interface ImagePlaceholderProps {
   label: string;

@@ -30,6 +30,43 @@
   color: #1677ff;
 }
 
+.tplHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.tplHead .muted {
+  margin: 0;
+  flex: 1;
+}
+
+.tplToolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.tplName {
+  padding: 0;
+  height: auto;
+}
+
+.tplBody {
+  margin-bottom: 0 !important;
+  max-width: 420px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.starOn {
+  color: #faad14;
+}
+
 .tplGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -47,6 +84,46 @@
 .muted {
   color: rgba(0, 0, 0, 0.45);
   margin-top: 0;
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 12px;
+}
+
+.card {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.cardMeta {
+  padding: 10px 12px 12px;
+}
+
+.cardTitle {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.cardScene {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  margin-bottom: 8px;
+  min-height: 18px;
+}
+
+.cardFoot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 900px) {

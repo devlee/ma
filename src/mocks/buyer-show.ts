@@ -1,8 +1,11 @@
 import type {
+  Angle,
+  CategoryTag,
   ColorDictionary,
   ConsistencyStatus,
   CrowdTag,
   DashboardSnapshot,
+  FreeBatch,
   Image1Source,
   InspectionImageStatus,
   InspectionImages,
@@ -1273,6 +1276,110 @@ const seedSubs: SeedSub[] = [
 
 export const mockSubtasks: Subtask[] = seedSubs.map((s) => toSub(s, mockMainTasks));
 
+export const MOCK_FREE_BATCH_ID = 'FB-20260910-0001';
+export const MOCK_FREE_BATCH_OPS_ID = 'FB-20260910-0002';
+
+export const mockFreeBatches: FreeBatch[] = [
+  {
+    id: MOCK_FREE_BATCH_ID,
+    createdAt: '2026-09-10 16:20:00',
+    operator: '付新玲',
+    spus: ['SPU-1008630', 'SPU-1008640'],
+    imageCount: 6,
+  },
+  {
+    id: MOCK_FREE_BATCH_OPS_ID,
+    createdAt: '2026-09-10 17:05:00',
+    operator: '张运营',
+    spus: ['SPU-1008650'],
+    imageCount: 2,
+  },
+];
+
+function mockFreeSub(seed: {
+  id: string;
+  spu: string;
+  color: string;
+  angle: Angle;
+  status: Extract<SubtaskStatus, '生图中' | '生图失败' | '待提交审核'>;
+  generateCount?: number;
+  batchId?: string;
+  assignee?: string;
+  createdAt?: string;
+}): Subtask {
+  const batchId = seed.batchId ?? MOCK_FREE_BATCH_ID;
+  const master = mockSpus.find((s) => s.spu === seed.spu);
+  const ok = seed.status === '待提交审核';
+  return {
+    id: seed.id,
+    mainTaskId: batchId,
+    source: '手动批量',
+    batchId,
+    spu: seed.spu,
+    color: seed.color,
+    angle: seed.angle,
+    category: master?.category ?? '',
+    crowdTag: seed.spu === 'SPU-1008630' ? '花园' : '街拍',
+    sceneTag: '默认场景',
+    produceMode: '批量制作',
+    status: seed.status,
+    reviewRound: 0,
+    generateCount: seed.generateCount ?? 1,
+    assignee: seed.assignee ?? '付新玲',
+    createdAt: seed.createdAt ?? '2026-09-10 16:20:00',
+    image1: { url: `商品图·${seed.angle}`, source: '商品图' },
+    image2: { url: '', source: '参考图' },
+    prompt: `{色值:#111111} {材质:${master?.material ?? ''}} {品类:${master?.category ?? ''}} {场景:默认场景}`,
+    templateVersion: `${seed.angle}-v3`,
+    colorMatchStatus: deriveColorMatchStatus(seed.color, mockColorDictionaries),
+    currentResultUrl: ok ? `result-${seed.id}` : undefined,
+    versions: ok
+      ? [{ url: `result-${seed.id}`, type: 'AI 生成', createdAt: '2026-09-10 16:22:00', operator: 'system' }]
+      : undefined,
+    operationLogs: [
+      {
+        action:
+          seed.status === '生图失败'
+            ? 'AI 生图失败，可重跑'
+            : seed.status === '生图中'
+              ? '自由批量创建，进入生图中'
+              : 'AI 生图成功，进入待提交审核',
+        operator: 'system',
+        createdAt: '2026-09-10 16:22:00',
+      },
+    ],
+  };
+}
+
+export const mockFreeBatchSubs: Subtask[] = [
+  mockFreeSub({ id: 'FBS-0910-0001-01', spu: 'SPU-1008630', color: '黑色', angle: '正面', status: '待提交审核' }),
+  mockFreeSub({ id: 'FBS-0910-0001-02', spu: 'SPU-1008630', color: '黑色', angle: '侧面', status: '生图中' }),
+  mockFreeSub({ id: 'FBS-0910-0001-03', spu: 'SPU-1008630', color: '黑色', angle: '背面', status: '生图失败', generateCount: 2 }),
+  mockFreeSub({ id: 'FBS-0910-0001-04', spu: 'SPU-1008630', color: '黑色', angle: '半身', status: '待提交审核' }),
+  mockFreeSub({ id: 'FBS-0910-0001-05', spu: 'SPU-1008640', color: '雾霾蓝', angle: '正面', status: '生图中' }),
+  mockFreeSub({ id: 'FBS-0910-0001-06', spu: 'SPU-1008640', color: '雾霾蓝', angle: '侧面', status: '生图失败' }),
+  mockFreeSub({
+    id: 'FBS-0910-0002-01',
+    batchId: MOCK_FREE_BATCH_OPS_ID,
+    assignee: '张运营',
+    createdAt: '2026-09-10 17:05:00',
+    spu: 'SPU-1008650',
+    color: '白色',
+    angle: '正面',
+    status: '待提交审核',
+  }),
+  mockFreeSub({
+    id: 'FBS-0910-0002-02',
+    batchId: MOCK_FREE_BATCH_OPS_ID,
+    assignee: '张运营',
+    createdAt: '2026-09-10 17:05:00',
+    spu: 'SPU-1008650',
+    color: '白色',
+    angle: '侧面',
+    status: '生图失败',
+  }),
+];
+
 export const mockMaterials: Material[] = [
   { id: 'MAT-连衣裙-正面-户外-01', url: 'mat-1', category: '连衣裙', angle: '正面', scene: '户外草坪', crowdTag: '户外', status: '启用', usageCount: 86 },
   { id: 'MAT-连衣裙-正面-花园-01', url: 'mat-2', category: '连衣裙', angle: '正面', scene: '花园', crowdTag: '花园', status: '启用', usageCount: 42 },
@@ -1288,6 +1395,25 @@ export const mockMaterials: Material[] = [
   { id: 'MAT-衬衫-正面-工作室-01', url: 'mat-11', category: '衬衫', angle: '正面', scene: '工作室', crowdTag: '工作室', status: '启用', usageCount: 12 },
   { id: 'MAT-半身裙-正面-公园-01', url: 'mat-12', category: '半身裙', angle: '正面', scene: '公园', crowdTag: '公园', status: '启用', usageCount: 2 },
 ];
+
+/** 按品类管理的标签库；含一张无图标签（衬衫·通勤）方便筛空态 */
+export const mockCategoryTags: CategoryTag[] = (() => {
+  const seen = new Set<string>();
+  const list: CategoryTag[] = [];
+  mockMaterials.forEach((m) => {
+    const key = `${m.category}::${m.crowdTag}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    list.push({
+      id: `TAG-${String(list.length + 1).padStart(2, '0')}`,
+      category: m.category,
+      name: m.crowdTag,
+      status: '启用',
+    });
+  });
+  list.push({ id: 'TAG-衬衫-通勤', category: '衬衫', name: '通勤', status: '启用' });
+  return list;
+})();
 
 const anglePromptPacks: Omit<PromptTemplate, 'id' | 'category'>[] = [
   {

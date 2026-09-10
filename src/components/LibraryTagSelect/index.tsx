@@ -1,12 +1,13 @@
 import { AutoComplete, Select } from 'antd';
 import type { CSSProperties } from 'react';
-import type { Angle, Material } from '@/types/buyer-show';
+import type { Angle, CategoryTag, Material } from '@/types/buyer-show';
 import { libraryTags } from '@/utils/buyer-show';
 
 interface LibraryTagSelectProps {
   value?: string;
   onChange?: (value: string) => void;
   materials: Material[];
+  categoryTags?: CategoryTag[];
   category?: string;
   angle?: Angle;
   allowCreate?: boolean;
@@ -19,6 +20,7 @@ export function LibraryTagSelect({
   value,
   onChange,
   materials,
+  categoryTags,
   category,
   angle,
   allowCreate = false,
@@ -30,6 +32,7 @@ export function LibraryTagSelect({
     category,
     angle,
     includeDisabled: allowCreate,
+    categoryTags,
   });
   const options = tags.map((t) => ({ value: t, label: t }));
   const placeholder =
@@ -38,8 +41,8 @@ export function LibraryTagSelect({
       ? allowCreate
         ? '选已有或输入新建'
         : '选择标签'
-      : category || angle
-        ? '该品类/角度暂无标签，请到配置管理·图库补充'
+      : category
+        ? '该品类暂无标签，请到配置管理·图库补充'
         : '选择标签');
 
   if (allowCreate) {

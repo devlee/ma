@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import { ANGLES } from '@/constants/buyer-show';
 import type {
   Angle,
+  CategoryTag,
   ColorDictionary,
   ColorMatchStatus,
   ConsistencyStatus,
@@ -150,11 +151,31 @@ export function filterRefLibrary(materials: Material[], category: string, tag: C
   );
 }
 
-/** 设计端选项：当前品类 + 角度下，图库已启用的标签 */
+/** 同一品类下标签名完全相同则视为重复（首尾空格忽略） */
+export function categoryHasTag(tags: CategoryTag[], category: string, name: string) {
+  const n = name.trim();
+  return Boolean(n) && tags.some((t) => t.category === category && t.name === n);
+}
+
+/** 设计端 / 筛选：优先用品类标签库；否则从图库图片倒推。标签按品类，不按角度。 */
 export function libraryTags(
   materials: Material[],
-  opts?: { category?: string; angle?: Angle; includeDisabled?: boolean },
+  opts?: { category?: string; angle?: Angle; includeDisabled?: boolean; categoryTags?: CategoryTag[] },
 ) {
+  if (opts?.categoryTags?.length) {
+    return [
+      ...new Set(
+        opts.categoryTags
+          .filter(
+            (t) =>
+              (opts.includeDisabled || t.status === '启用') &&
+              (!opts.category || t.category === opts.category),
+          )
+          .map((t) => t.name)
+          .filter(Boolean),
+      ),
+    ];
+  }
   return [
     ...new Set(
       materials
@@ -232,6 +253,10 @@ export function colorMatchDisplay(status: ColorMatchStatus, prompt: string) {
 
 export function enabledTemplate(templates: PromptTemplate[], category: string, angle: Angle) {
   return templates.find((t) => t.category === category && t.angle === angle && t.status === '启用');
+}
+
+export function templateDisplayName(t: Pick<PromptTemplate, 'category' | 'angle'>) {
+  return `${t.category}（${t.angle}）`;
 }
 
 export function fillPromptFromSpu(
@@ -353,6 +378,10 @@ export const SPU_TABLE_TEMPLATE = 'SPU,个数\nSPU-1008640,4\nSPU-1008611,4\n';
 
 export function nextFreeBatchId(existCount: number) {
   return `FB-${nowLabel().slice(0, 10).replace(/-/g, '')}-${String(existCount + 1).padStart(4, '0')}`;
+}
+
+export function canRerunFreeBatch(status: SubtaskStatus) {
+  return status !== '生图中';
 }
 
 export function isFreeBatchSub(sub: Subtask) {
