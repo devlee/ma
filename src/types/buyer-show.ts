@@ -39,14 +39,29 @@ export type Angle = '正面' | '侧面' | '背面' | '半身';
 /** 制作方式（第 4.3 节） */
 export type ProduceMode = '批量制作' | '单个制作';
 
-/** 质检图状态（第 4.3 / 4.4 节） */
+/** 任务来源（第 6.5 / 14.3 节）；页上可不展示 */
+export type TaskSource = '灵鉴' | '手动批量';
+
+/** 自由批量生图的一次创建批次（第 6.5.1 / 6.5.4 节） */
+export interface FreeBatch {
+  id: string;
+  createdAt: string;
+  operator: string;
+  spus: string[];
+  imageCount: number;
+}
+
+/** 质检图状态（第 4.3 / 4.4 / 4A.5 节） */
 export type InspectionImageStatus = '未配置' | '部分配置' | '已配置';
 
-/** 图1 来源（第 6.1.3 / 6.4 节） */
-export type Image1Source = '质检图' | '商品图兜底' | '手动';
+/** 实物一致性（第 4A.6 / 14.2 节） */
+export type ConsistencyStatus = '未确认' | '已确认';
 
-/** 附加标签：单人 / 多人（第 6.1.3 / 11.1 节） */
-export type CrowdTag = '单人' | '多人';
+/** 参考图来源（主流程 6.1 + 自由批量 6.5） */
+export type Image1Source = '质检图' | '商品图兜底' | '手动' | '商品图' | '参考图' | '其他';
+
+/** 图库调库标签（第 6.1.3 / 11.1 节）；取值来自图库已打标，不限定单人/多人 */
+export type CrowdTag = string;
 
 /** 色值匹配状态（第 6.1.3 节） */
 export type ColorMatchStatus = '匹配成功' | '未匹配';
@@ -54,12 +69,18 @@ export type ColorMatchStatus = '匹配成功' | '未匹配';
 /** 素材 / 模板启用状态（第 11.1 / 11.2 节） */
 export type EnableStatus = '启用' | '停用';
 
-/** 质检图四个角度槽位（第 4.4 节）；有值表示已配置 */
+/** 质检图四个角度槽位（第 4.4 / 4A.5 节）；有值表示已配置 */
 export interface InspectionImages {
   正面?: string;
   侧面?: string;
   背面?: string;
   半身?: string;
+}
+
+/** 分发写入主任务的质检图快照（第 4.4 节） */
+export interface QcImagesSnapshot {
+  images: InspectionImages;
+  status: InspectionImageStatus;
 }
 
 /** 商品图槽位，用于图1 兜底（第 6.1.3 节） */
@@ -69,6 +90,27 @@ export interface ProductImages {
   侧面?: boolean;
   背面?: boolean;
   半身?: boolean;
+}
+
+/** 在架 SPU 主数据（第 4A 节）；质检图与一致性的唯一维护源 */
+export interface SpuMaster {
+  spu: string;
+  spuName: string;
+  /** 商详首图 / 商品主图 */
+  coverImage?: string;
+  category: string;
+  /** SPU 材质，描述词槽位用 */
+  material: string;
+  productImages: ProductImages;
+  /** 近 30 天销量（件数，口径 TBD） */
+  sales30d: number;
+  qcImages: InspectionImages;
+  qcStatus: InspectionImageStatus;
+  consistencyStatus: ConsistencyStatus;
+  consistencyConfirmedBy?: string;
+  consistencyConfirmedAt?: string;
+  updatedAt: string;
+  updatedBy: string;
 }
 
 /** 主任务（第 4.3 节列表字段，含第 4.4 / 9.1 节补充） */
@@ -90,8 +132,15 @@ export interface MainTask {
   completedCount: number;
   /** 运营指定的目标颜色，可为空 */
   color?: string;
+  /** 兼容制作页图1 解析；已分发后与快照同步写入，待分发请读 SPU 主数据 */
   inspectionImageStatus: InspectionImageStatus;
   inspectionImages?: InspectionImages;
+  /** 分发时从 SPU 主数据拷贝，之后冻结（第 4.4 / 14.2 节） */
+  qcImagesSnapshot?: QcImagesSnapshot;
+  /** 分发快照：未确认 / 已确认 */
+  consistencyStatus?: ConsistencyStatus;
+  consistencyConfirmedBy?: string;
+  consistencyConfirmedAt?: string;
   productImages: ProductImages;
   /** 分发前必填；未指定时为空 */
   produceMode?: ProduceMode;
@@ -146,8 +195,11 @@ export interface OperationLog {
 export interface Subtask {
   /** 子任务编号 */
   id: string;
-  /** 主任务编号 */
+  /** 主任务编号；自由批量时记批次 ID，不对应任务清单主任务 */
   mainTaskId: string;
+  /** 默认灵鉴；自由批量生图为手动批量 */
+  source?: TaskSource;
+  batchId?: string;
   spu: string;
   color: string;
   angle: Angle;
@@ -169,8 +221,10 @@ export interface Subtask {
   image1: ReferenceImage;
   /** 图2：素材库 */
   image2: ReferenceImage;
-  /** 图3：选填，多人时默认展开 */
+  /** 图3：自由批量=质检图（选填）；主流程=第二张素材 */
   image3?: ReferenceImage;
+  /** 图4：其他（选填，自由批量） */
+  image4?: ReferenceImage;
   /** 描述词最终文本 */
   prompt: string;
   /** 所用描述词模板版本 */
@@ -193,7 +247,7 @@ export interface Material {
   angle: Angle;
   /** 层级：场景 */
   scene: string;
-  /** 附加标签 */
+  /** 调库标签，运营上传时打标 */
   crowdTag: CrowdTag;
   status: EnableStatus;
   /** 使用次数，自动匹配降权依据 */
@@ -208,14 +262,15 @@ export interface PromptTemplateVersion {
   content: string;
 }
 
-/** 描述词模板（第 11.2 节，按角度一套） */
+/** 描述词模板（第 11.2 节，按品类 × 角度一套） */
 export interface PromptTemplate {
   id: string;
+  category: string;
   angle: Angle;
   /** 含 {色值} {材质} {品类} {场景} 槽位 */
   content: string;
   version: string;
-  /** 每个角度有且仅有一个启用版本 */
+  /** 每个品类 × 角度有且仅有一个启用版本 */
   status: EnableStatus;
   versions: PromptTemplateVersion[];
 }

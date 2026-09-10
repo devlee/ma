@@ -1,16 +1,19 @@
 import { Alert, Button, Card, Space, Table, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { ConsistencyTag } from '@/components/ConsistencyTag';
 import { ImagePlaceholder } from '@/components/ImagePlaceholder';
+import { QcCoverageTag } from '@/components/QcImageEditor';
 import { StatusTag } from '@/components/StatusTag';
 import { useRole } from '@/contexts/RoleContext';
 import { useBuyerShow } from '@/store/buyerShow';
 import type { MainTask } from '@/types/buyer-show';
+import { resolveTaskQcView } from '@/utils/buyer-show';
 import shared from '../shared.module.css';
 
 export default function TaskClaim() {
   const { role } = useRole();
   const canClaim = role === '买家秀设计';
-  const { mainTasks, currentDesigner, claimTask } = useBuyerShow();
+  const { mainTasks, findSpu, currentDesigner, claimTask } = useBuyerShow();
 
   const list = mainTasks.filter((t) => {
     if (t.status === '待领取') return true;
@@ -45,9 +48,27 @@ export default function TaskClaim() {
     },
     {
       title: '质检图状态',
-      dataIndex: 'inspectionImageStatus',
-      width: 110,
-      render: (v: string) => <StatusTag value={v} />,
+      key: 'qc',
+      width: 160,
+      render: (_, t) => {
+        const view = resolveTaskQcView(t, findSpu(t.spu));
+        return <QcCoverageTag images={view.images} status={view.status} />;
+      },
+    },
+    {
+      title: '实物一致性',
+      key: 'consistency',
+      width: 180,
+      render: (_, t) => {
+        const view = resolveTaskQcView(t, findSpu(t.spu));
+        return (
+          <ConsistencyTag
+            status={view.consistencyStatus}
+            confirmedBy={view.consistencyConfirmedBy}
+            confirmedAt={view.consistencyConfirmedAt}
+          />
+        );
+      },
     },
     { title: '下发时间', dataIndex: 'issuedAt', width: 160 },
     { title: '分发时间', dataIndex: 'dispatchedAt', width: 160, render: (v?: string) => v || '—' },
@@ -91,7 +112,7 @@ export default function TaskClaim() {
         message="展示【待领取】及「自身制作中 / 返修中」的主任务。认领后主任务进入【制作中】，制作人写入。"
       />
       <Card size="small">
-        <Table rowKey="id" size="small" columns={columns} dataSource={list} pagination={false} scroll={{ x: 1400 }} />
+        <Table rowKey="id" size="small" columns={columns} dataSource={list} pagination={false} scroll={{ x: 'max-content' }} />
       </Card>
     </div>
   );

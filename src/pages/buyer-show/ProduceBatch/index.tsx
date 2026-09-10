@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Card, Input, Select, Space, Table, Typography, message } from 'antd';
+import { Alert, Button, Card, Input, Select, Space, Table, Typography, Upload, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ImagePlaceholder } from '@/components/ImagePlaceholder';
+import { LibraryTagSelect } from '@/components/LibraryTagSelect';
 import { MaterialPicker } from '@/components/MaterialPicker';
+import { ConsistencyTag } from '@/components/ConsistencyTag';
+import { QcCoverageTag } from '@/components/QcImageEditor';
 import { StatusTag } from '@/components/StatusTag';
 import { ANGLES } from '@/constants/buyer-show';
 import { useRole } from '@/contexts/RoleContext';
@@ -13,12 +16,13 @@ import {
   fillPrompt,
   image1Kind,
   colorMatchDisplay,
+  isUploadedSlot,
   matchColor,
-  matchMaterial,
   nextSubtaskId,
   nowLabel,
   promptHasColorSlotFilled,
   resolveImage1,
+  resolveTaskQcView,
   shouldShowMainSubmit,
   subsOf,
 } from '@/utils/buyer-show';
@@ -40,7 +44,6 @@ interface DraftRow {
   match: '匹配成功' | '未匹配';
   error: boolean;
   promptOpen: boolean;
-  img3Open: boolean;
 }
 
 export default function ProduceBatch() {
@@ -73,19 +76,14 @@ export default function ProduceBatch() {
       return;
     }
     const next: DraftRow[] = [];
-    const used: Record<string, string[]> = {};
     ids.forEach((id) => {
       const t = mainTasks.find((x) => x.id === id);
       if (!t) return;
       const exist = createdCount(id);
       const n = remain(t);
-      used[id] = [];
       for (let i = 0; i < n; i += 1) {
         const angle = ANGLES[(exist + i) % 4];
-        const tag: CrowdTag = '单人';
         const img1 = resolveImage1(t, angle);
-        const img2 = matchMaterial(materials, t, angle, tag, used[id]);
-        if (img2) used[id].push(img2);
         const p = fillPrompt(t, angle, t.color, promptTemplates, colorDictionaries);
         next.push({
           key: `${id}-${exist + i + 1}`,
@@ -93,17 +91,16 @@ export default function ProduceBatch() {
           idx: exist + i + 1,
           color: t.color ?? '',
           angle,
-          tag,
+          tag: '',
           img1Source: img1.source,
           img1Label: img1.label,
-          img2,
+          img2: '',
           img3: '',
           prompt: p.text,
           ver: p.ver,
           match: matchColor(t.color, colorDictionaries),
           error: false,
           promptOpen: false,
-          img3Open: false,
         });
       }
     });
@@ -137,7 +134,7 @@ export default function ProduceBatch() {
         } else if (patch.color !== undefined) {
           next.match = matchColor(next.color, colorDictionaries);
         }
-        if (patch.tag === '多人') next.img3Open = true;
+        if ((patch.tag || patch.angle) && !isUploadedSlot(next.img2)) next.img2 = '';
         return next;
       }),
     );
@@ -149,8 +146,8 @@ export default function ProduceBatch() {
       const error =
         !r.color ||
         !r.angle ||
-        !r.tag ||
         !r.img2 ||
+        (!isUploadedSlot(r.img2) && !r.tag) ||
         !r.prompt ||
         (r.img1Source === '手动' && r.img1Label.includes('请手动')) ||
         (r.match === '未匹配' && !hexFilled);
@@ -179,8 +176,14 @@ export default function ProduceBatch() {
         assignee: currentDesigner,
         createdAt: nowLabel(),
         image1: { url: r.img1Label, source: r.img1Source },
-        image2: { url: r.img2, materialId: r.img2 },
-        image3: r.img3 ? { url: r.img3, materialId: r.img3 } : undefined,
+        image2: isUploadedSlot(r.img2)
+          ? { url: r.img2, source: '手动' }
+          : { url: r.img2, materialId: r.img2, source: '参考图' },
+        image3: r.img3
+          ? isUploadedSlot(r.img3)
+            ? { url: r.img3, source: '手动' }
+            : { url: r.img3, materialId: r.img3 }
+          : undefined,
         prompt: r.prompt,
         templateVersion: r.ver,
         colorMatchStatus: r.match,
@@ -216,7 +219,20 @@ export default function ProduceBatch() {
     { title: '已创建子任务', render: (_, t) => createdCount(t.id) },
     { title: '剩余可展开', render: (_, t) => remain(t) },
     { title: '颜色', dataIndex: 'color', render: (v?: string) => v || '—' },
-    { title: '质检图状态', dataIndex: 'inspectionImageStatus', render: (v: string) => <StatusTag value={v} /> },
+    {
+      title: '质检图状态',
+      render: (_, t) => {
+        const view = resolveTaskQcView(t, store.findSpu(t.spu));
+        return <QcCoverageTag images={view.images} status={view.status} />;
+      },
+    },
+    {
+      title: '实物一致性',
+      render: (_, t) => {
+        const view = resolveTaskQcView(t, store.findSpu(t.spu));
+        return <ConsistencyTag status={view.consistencyStatus} />;
+      },
+    },
     { title: '主任务状态', dataIndex: 'status', render: (v: string) => <StatusTag value={v} /> },
   ];
 
@@ -264,7 +280,7 @@ export default function ProduceBatch() {
         className={shared.card}
         size="small"
         title="待创建子任务（行展开）"
-        extra={<span style={{ color: 'rgba(0,0,0,0.45)' }}>必填：颜色、角度、标签、图1、图2、描述词。图3 选填；标签为多人时默认展开。</span>}
+        extra={<span style={{ color: 'rgba(0,0,0,0.45)' }}>必填：颜色、角度、图1、图2、描述词。图2 先选标签再调库，或手传；图3 选填，可调库或手传。</span>}
       >
         <Table
           rowKey="key"
@@ -307,18 +323,20 @@ export default function ProduceBatch() {
             },
             {
               title: '标签',
-              width: 100,
-              render: (_, r) => (
-                <Select
-                  value={r.tag}
-                  style={{ width: 80 }}
-                  options={[
-                    { value: '单人', label: '单人' },
-                    { value: '多人', label: '多人' },
-                  ]}
-                  onChange={(tag: CrowdTag) => patchRow(r.key, { tag, img3Open: tag === '多人' })}
-                />
-              ),
+              width: 140,
+              render: (_, r) => {
+                const t = mainTasks.find((x) => x.id === r.mainId);
+                return (
+                  <LibraryTagSelect
+                    value={r.tag}
+                    materials={materials}
+                    category={t?.category}
+                    angle={r.angle}
+                    style={{ width: 120 }}
+                    onChange={(tag) => patchRow(r.key, { tag })}
+                  />
+                );
+              },
             },
             {
               title: '图1',
@@ -332,39 +350,73 @@ export default function ProduceBatch() {
             },
             {
               title: '图2',
-              width: 180,
-              render: (_, r) => (
-                <div>
-                  <ImagePlaceholder label={r.img2 || '未匹配素材'} kind={r.img2 ? 'mat' : ''} size="md" />
-                  <MaterialPicker
-                    value={r.img2}
-                    materials={materials}
-                    onChange={(img2) => patchRow(r.key, { img2 })}
-                    style={{ marginTop: 8, width: '100%' }}
-                  />
-                </div>
-              ),
+              width: 200,
+              render: (_, r) => {
+                const t = mainTasks.find((x) => x.id === r.mainId);
+                return (
+                  <div>
+                    <ImagePlaceholder label={r.img2 || '请选择或上传'} kind={r.img2 ? 'mat' : ''} size="md" />
+                    <div style={{ color: 'rgba(0,0,0,0.45)', fontSize: 12, marginTop: 4 }}>
+                      {r.tag ? `图库：${t?.category}-${r.tag}-${r.angle}` : '先选标签再调库，或直接上传'}
+                    </div>
+                    <MaterialPicker
+                      value={isUploadedSlot(r.img2) ? undefined : r.img2}
+                      materials={materials}
+                      category={t?.category}
+                      crowdTag={r.tag}
+                      angle={r.angle}
+                      emptyLabel="从参考图库选择"
+                      onChange={(img2) => patchRow(r.key, { img2 })}
+                      style={{ marginTop: 8, width: '100%' }}
+                    />
+                    <Upload
+                      showUploadList={false}
+                      beforeUpload={() => {
+                        patchRow(r.key, { img2: `已上传参考图·${r.angle}` });
+                        message.success('已上传图2（演示）');
+                        return false;
+                      }}
+                    >
+                      <Button type="link" size="small">
+                        上传/替换
+                      </Button>
+                    </Upload>
+                  </div>
+                );
+              },
             },
             {
               title: '图3',
-              width: 180,
-              render: (_, r) =>
-                r.tag === '多人' || r.img3Open ? (
+              width: 200,
+              render: (_, r) => {
+                const t = mainTasks.find((x) => x.id === r.mainId);
+                return (
                   <div>
                     <ImagePlaceholder label={r.img3 || '图3 选填'} kind={r.img3 ? 'mat' : ''} size="md" />
                     <MaterialPicker
-                      value={r.img3}
+                      value={isUploadedSlot(r.img3) ? undefined : r.img3}
                       materials={materials}
-                      emptyLabel="从素材库选择"
+                      category={t?.category}
+                      crowdTag={r.tag}
+                      angle={r.angle}
+                      emptyLabel="从参考图库选择"
                       onChange={(img3) => patchRow(r.key, { img3 })}
                       style={{ marginTop: 8, width: '100%' }}
                     />
+                    <Upload
+                      showUploadList={false}
+                      beforeUpload={() => {
+                        patchRow(r.key, { img3: `已上传图3·${r.angle}` });
+                        return false;
+                      }}
+                    >
+                      <Button type="link" size="small">
+                        上传/替换
+                      </Button>
+                    </Upload>
                   </div>
-                ) : (
-                  <Button type="link" size="small" onClick={() => patchRow(r.key, { img3Open: true, tag: '多人' })}>
-                    展开图3
-                  </Button>
-                ),
+                );
+              },
             },
             {
               title: '描述词',
@@ -454,15 +506,13 @@ export default function ProduceBatch() {
         />
         <Space wrap style={{ marginTop: 12 }}>
           <span>批量改 标签</span>
-          <Select
-            style={{ width: 100 }}
+          <LibraryTagSelect
             value={adjTag}
+            materials={materials}
+            allowEmpty
+            emptyLabel="不修改"
+            style={{ width: 140 }}
             onChange={setAdjTag}
-            options={[
-              { value: '', label: '不修改' },
-              { value: '单人', label: '单人' },
-              { value: '多人', label: '多人' },
-            ]}
           />
           <span>图2</span>
           <MaterialPicker value={adjImg2} materials={materials} emptyLabel="不修改" onChange={setAdjImg2} />

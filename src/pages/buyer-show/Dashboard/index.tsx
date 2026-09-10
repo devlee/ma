@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, DatePicker, Select, Space, Statistic, Table, Typography, message } from 'antd';
 import ReactECharts from 'echarts-for-react';
-import { CATEGORIES, DESIGNERS, PRODUCE_MODES } from '@/constants/buyer-show';
+import { ANGLES, CATEGORIES, DESIGNERS, PRODUCE_MODES } from '@/constants/buyer-show';
 import { useRole } from '@/contexts/RoleContext';
 import { mockDashboard } from '@/mocks/buyer-show';
 import { useBuyerShow } from '@/store/buyerShow';
+import type { MainTask, SpuMaster, Subtask } from '@/types/buyer-show';
 import shared from '../shared.module.css';
 import styles from './index.module.css';
 
 export default function Dashboard() {
   const { role } = useRole();
-  const { currentDesigner } = useBuyerShow();
+  const { currentDesigner, spus, mainTasks, subtasks } = useBuyerShow();
   const isDesigner = role === '买家秀设计';
   const D = mockDashboard;
   const [maker, setMaker] = useState(isDesigner ? currentDesigner : '');
@@ -147,40 +148,8 @@ export default function Dashboard() {
       </Card>
 
       <div className={styles.dashGrid}>
-        <Card size="small" title="质检图配置">
-          <ReactECharts
-            style={{ height: 220 }}
-            option={{
-              tooltip: {},
-              xAxis: { type: 'category', data: ['已配置', '部分配置', '未配置'] },
-              yAxis: { type: 'value', max: 100 },
-              series: [{ type: 'bar', data: [D.qcRate.已配置, D.qcRate.部分配置, D.qcRate.未配置], itemStyle: { color: '#1677ff' } }],
-            }}
-          />
-          <div style={{ marginTop: 12 }}>
-            按角度覆盖率：
-            {Object.entries(D.qcAngle)
-              .map(([k, v]) => `${k} ${v}`)
-              .join(' / ')}
-          </div>
-          <div style={{ marginTop: 8 }}>
-            图1 使用商品图兜底的子任务占比：<b>{D.img1FallbackRate}</b>
-          </div>
-          <Typography.Title level={5} style={{ marginTop: 12 }}>
-            未配置即分发的主任务清单
-          </Typography.Title>
-          <Table
-            size="small"
-            pagination={false}
-            scroll={{ x: 'max-content' }}
-            rowKey="id"
-            dataSource={D.noQcDistributed}
-            columns={[
-              { title: '任务编号', dataIndex: 'id' },
-              { title: 'SPU', dataIndex: 'spu' },
-              { title: '分发时间', dataIndex: 'at' },
-            ]}
-          />
+        <Card size="small" title="质检图与一致性">
+          <QcConsistencyPanel spus={spus} mainTasks={mainTasks} subtasks={subtasks} />
         </Card>
         <Card size="small" title="配置健康度">
           <ReactECharts
@@ -215,6 +184,90 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function pct(n: number, d: number) {
+  if (!d) return '0%';
+  return `${Math.round((n / d) * 1000) / 10}%`;
+}
+
+function QcConsistencyPanel({
+  spus,
+  mainTasks,
+  subtasks,
+}: {
+  spus: SpuMaster[];
+  mainTasks: MainTask[];
+  subtasks: Subtask[];
+}) {
+  const spuTotal = spus.length;
+  const qcConfigured = spus.filter((s) => s.qcStatus === '已配置').length;
+  const qcPartial = spus.filter((s) => s.qcStatus === '部分配置').length;
+  const qcNone = spus.filter((s) => s.qcStatus === '未配置').length;
+  const consConfirmed = spus.filter((s) => s.consistencyStatus === '已确认').length;
+  const angleCover = Object.fromEntries(
+    ANGLES.map((angle) => [angle, pct(spus.filter((s) => Boolean(s.qcImages[angle])).length, spuTotal)]),
+  ) as Record<(typeof ANGLES)[number], string>;
+
+  const dispatched = mainTasks.filter((t) => Boolean(t.dispatchedAt) || Boolean(t.qcImagesSnapshot));
+  const taskQcConfigured = dispatched.filter((t) => (t.qcImagesSnapshot?.status ?? t.inspectionImageStatus) === '已配置').length;
+  const noQcDistributed = dispatched.filter((t) => (t.qcImagesSnapshot?.status ?? t.inspectionImageStatus) === '未配置');
+  const noConsDistributed = dispatched.filter((t) => (t.consistencyStatus ?? '未确认') === '未确认');
+  const fallbackSubs = subtasks.filter((s) => s.image1.source === '商品图兜底');
+
+  return (
+    <>
+      <Typography.Title level={5} style={{ marginTop: 0 }}>
+        在架 SPU
+      </Typography.Title>
+      <div className={styles.statGrid3}>
+        <Statistic title="质检图覆盖率（已配置）" value={pct(qcConfigured, spuTotal)} />
+        <Statistic title="一致性确认率" value={pct(consConfirmed, spuTotal)} />
+        <Statistic title="在架 SPU 数" value={spuTotal} />
+      </div>
+      <ReactECharts
+        style={{ height: 200 }}
+        option={{
+          tooltip: {},
+          xAxis: { type: 'category', data: ['已配置', '部分配置', '未配置'] },
+          yAxis: { type: 'value' },
+          series: [{ type: 'bar', data: [qcConfigured, qcPartial, qcNone], itemStyle: { color: '#1677ff' } }],
+        }}
+      />
+      <div style={{ marginTop: 8 }}>
+        按角度覆盖率：
+        {ANGLES.map((angle) => `${angle} ${angleCover[angle]}`).join(' / ')}
+      </div>
+
+      <Typography.Title level={5} style={{ marginTop: 16 }}>
+        任务侧
+      </Typography.Title>
+      <div className={styles.statGrid3}>
+        <Statistic title="主任务质检图配置率" value={pct(taskQcConfigured, dispatched.length)} />
+        <Statistic title="未配置即分发" value={pct(noQcDistributed.length, dispatched.length)} />
+        <Statistic title="未确认即分发" value={pct(noConsDistributed.length, dispatched.length)} />
+      </div>
+      <div style={{ marginTop: 8 }}>
+        图1 商品图兜底占比：<b>{pct(fallbackSubs.length, subtasks.length)}</b>
+        <span style={{ color: 'rgba(0,0,0,0.45)' }}>（{fallbackSubs.length}/{subtasks.length}）</span>
+      </div>
+      <Typography.Title level={5} style={{ marginTop: 12 }}>
+        未配置即分发的主任务
+      </Typography.Title>
+      <Table
+        size="small"
+        pagination={false}
+        scroll={{ x: 'max-content' }}
+        rowKey="id"
+        dataSource={noQcDistributed.map((t) => ({ id: t.id, spu: t.spu, at: t.dispatchedAt ?? '—' }))}
+        columns={[
+          { title: '任务编号', dataIndex: 'id' },
+          { title: 'SPU', dataIndex: 'spu' },
+          { title: '分发时间', dataIndex: 'at' },
+        ]}
+      />
+    </>
   );
 }
 

@@ -6,6 +6,7 @@ import {
   mockMaterialDictionaries,
   mockMaterials,
   mockPromptTemplates,
+  mockSpus,
   mockSubtasks,
   mockUnmatchedRecords,
 } from '@/mocks/buyer-show';
@@ -13,20 +14,31 @@ import type {
   Angle,
   ColorDictionary,
   CrowdTag,
+  FreeBatch,
   InspectionImages,
   MainTask,
   Material,
   MaterialDictionary,
   ProduceMode,
   PromptTemplate,
+  SpuMaster,
   Subtask,
   UnmatchedRecord,
 } from '@/types/buyer-show';
-import { deriveMainAfterRound, deriveQcStatus, nowLabel } from '@/utils/buyer-show';
+import {
+  canConfirmConsistency,
+  deriveMainAfterRound,
+  deriveQcStatus,
+  nowLabel,
+  qcImagesChanged,
+  snapshotFromSpu,
+} from '@/utils/buyer-show';
 
 export interface BuyerShowState {
+  spus: SpuMaster[];
   mainTasks: MainTask[];
   subtasks: Subtask[];
+  freeBatches: FreeBatch[];
   materials: Material[];
   promptTemplates: PromptTemplate[];
   colorDictionaries: ColorDictionary[];
@@ -35,8 +47,10 @@ export interface BuyerShowState {
 }
 
 const initialState: BuyerShowState = {
+  spus: mockSpus,
   mainTasks: mockMainTasks,
   subtasks: mockSubtasks,
+  freeBatches: [],
   materials: mockMaterials,
   promptTemplates: mockPromptTemplates,
   colorDictionaries: mockColorDictionaries,
@@ -46,6 +60,10 @@ const initialState: BuyerShowState = {
 
 function patchMain(list: MainTask[], id: string, patch: Partial<MainTask>) {
   return list.map((t) => (t.id === id ? { ...t, ...patch } : t));
+}
+
+function patchSpu(list: SpuMaster[], spu: string, patch: Partial<SpuMaster>) {
+  return list.map((s) => (s.spu === spu ? { ...s, ...patch } : s));
 }
 
 function patchSub(list: Subtask[], id: string, patch: Partial<Subtask>) {
@@ -62,11 +80,15 @@ function appendLog(sub: Subtask, action: string, operator: string): Subtask {
 type Action =
   | { type: 'SET_COLOR'; id: string; color: string }
   | { type: 'SET_PRODUCE_MODE'; id: string; produceMode: ProduceMode | undefined }
-  | { type: 'SAVE_QC'; id: string; images: InspectionImages }
+  | { type: 'SAVE_SPU_QC'; spu: string; images: InspectionImages; operator: string }
+  | { type: 'CONFIRM_CONSISTENCY'; spu: string; operator: string; images?: InspectionImages }
+  | { type: 'REVOKE_CONSISTENCY'; spu: string; operator: string }
   | { type: 'DISPATCH'; ids: string[]; produceMode: ProduceMode }
   | { type: 'CANCEL'; id: string; reason: string }
   | { type: 'CLAIM'; id: string; designer: string }
   | { type: 'CREATE_SUBTASKS'; items: Subtask[] }
+  | { type: 'CREATE_FREE_BATCH'; batch: FreeBatch; items: Subtask[] }
+  | { type: 'COMPLETE_GEN'; ids: string[] }
   | { type: 'SUBMIT_SUBTASK'; id: string }
   | { type: 'REGENERATE'; id: string }
   | { type: 'MARK_EDITING'; id: string }
@@ -81,8 +103,8 @@ type Action =
   | { type: 'SAVE_REMARK'; id: string; remark: string }
   | { type: 'TOGGLE_MATERIAL'; id: string }
   | { type: 'ADD_MATERIAL'; item: Material }
-  | { type: 'SAVE_TEMPLATE'; angle: Angle; content: string }
-  | { type: 'ENABLE_TEMPLATE'; angle: Angle; version: string }
+  | { type: 'SAVE_TEMPLATE'; category: string; angle: Angle; content: string }
+  | { type: 'ENABLE_TEMPLATE'; category: string; angle: Angle; version: string }
   | { type: 'ADD_COLOR'; item: ColorDictionary };
 
 function reducer(state: BuyerShowState, action: Action): BuyerShowState {
@@ -91,23 +113,85 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
       return { ...state, mainTasks: patchMain(state.mainTasks, action.id, { color: action.color }) };
     case 'SET_PRODUCE_MODE':
       return { ...state, mainTasks: patchMain(state.mainTasks, action.id, { produceMode: action.produceMode }) };
-    case 'SAVE_QC':
+    case 'SAVE_SPU_QC': {
+      const current = state.spus.find((s) => s.spu === action.spu);
+      if (!current) return state;
+      const changed = qcImagesChanged(current.qcImages, action.images);
+      const qcStatus = deriveQcStatus(action.images);
+      const resetConsistency = changed && current.consistencyStatus === '已确认';
       return {
         ...state,
-        mainTasks: patchMain(state.mainTasks, action.id, {
-          inspectionImages: action.images,
-          inspectionImageStatus: deriveQcStatus(action.images),
+        spus: patchSpu(state.spus, action.spu, {
+          qcImages: action.images,
+          qcStatus,
+          consistencyStatus: resetConsistency ? '未确认' : current.consistencyStatus,
+          consistencyConfirmedBy: resetConsistency ? undefined : current.consistencyConfirmedBy,
+          consistencyConfirmedAt: resetConsistency ? undefined : current.consistencyConfirmedAt,
+          updatedAt: nowLabel(),
+          updatedBy: action.operator,
         }),
       };
+    }
+    case 'CONFIRM_CONSISTENCY': {
+      const current = state.spus.find((s) => s.spu === action.spu);
+      const images = action.images ?? current?.qcImages;
+      if (!current || !canConfirmConsistency(images)) return state;
+      const at = nowLabel();
+      return {
+        ...state,
+        spus: patchSpu(state.spus, action.spu, {
+          qcImages: images,
+          qcStatus: deriveQcStatus(images),
+          consistencyStatus: '已确认',
+          consistencyConfirmedBy: action.operator,
+          consistencyConfirmedAt: at,
+          updatedAt: at,
+          updatedBy: action.operator,
+        }),
+      };
+    }
+    case 'REVOKE_CONSISTENCY': {
+      const current = state.spus.find((s) => s.spu === action.spu);
+      if (!current) return state;
+      return {
+        ...state,
+        spus: patchSpu(state.spus, action.spu, {
+          consistencyStatus: '未确认',
+          consistencyConfirmedBy: undefined,
+          consistencyConfirmedAt: undefined,
+          updatedAt: nowLabel(),
+          updatedBy: action.operator,
+        }),
+      };
+    }
     case 'DISPATCH': {
       const at = nowLabel();
       return {
         ...state,
-        mainTasks: state.mainTasks.map((t) =>
-          action.ids.includes(t.id) && t.status === '待分发'
-            ? { ...t, produceMode: action.produceMode, status: '待领取', dispatchedAt: at }
-            : t,
-        ),
+        mainTasks: state.mainTasks.map((t) => {
+          if (!action.ids.includes(t.id) || t.status !== '待分发') return t;
+          const master = state.spus.find((s) => s.spu === t.spu);
+          const snap = master
+            ? snapshotFromSpu(master)
+            : {
+                qcImagesSnapshot: {
+                  images: t.inspectionImages ?? {},
+                  status: t.inspectionImageStatus,
+                },
+                consistencyStatus: t.consistencyStatus ?? '未确认',
+                consistencyConfirmedBy: t.consistencyConfirmedBy,
+                consistencyConfirmedAt: t.consistencyConfirmedAt,
+                inspectionImages: t.inspectionImages,
+                inspectionImageStatus: t.inspectionImageStatus,
+              };
+          return {
+            ...t,
+            ...snap,
+            produceMode: action.produceMode,
+            status: '待领取' as const,
+            dispatchedAt: at,
+          };
+        }),
       };
     }
     case 'CANCEL':
@@ -126,6 +210,30 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
       };
     case 'CREATE_SUBTASKS':
       return { ...state, subtasks: [...state.subtasks, ...action.items] };
+    case 'CREATE_FREE_BATCH':
+      return {
+        ...state,
+        freeBatches: [action.batch, ...state.freeBatches],
+        subtasks: [...state.subtasks, ...action.items],
+      };
+    case 'COMPLETE_GEN':
+      return {
+        ...state,
+        subtasks: state.subtasks.map((s) => {
+          if (!action.ids.includes(s.id) || s.status !== '生图中') return s;
+          const at = nowLabel();
+          return appendLog(
+            {
+              ...s,
+              status: '待提交审核',
+              currentResultUrl: `result-${s.id}`,
+              versions: [...(s.versions ?? []), { url: `result-${s.id}`, type: 'AI 生成', createdAt: at, operator: 'system' }],
+            },
+            'AI 生图成功，进入待提交审核',
+            'system',
+          );
+        }),
+      };
     case 'SUBMIT_SUBTASK': {
       const sub = state.subtasks.find((s) => s.id === action.id);
       const main = sub ? state.mainTasks.find((t) => t.id === sub.mainTaskId) : undefined;
@@ -273,10 +381,24 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
       return { ...state, materials: [action.item, ...state.materials] };
     case 'SAVE_TEMPLATE': {
       const at = nowLabel();
+      const hit = state.promptTemplates.some((t) => t.category === action.category && t.angle === action.angle);
+      if (!hit) {
+        const version = 'v1';
+        const item: PromptTemplate = {
+          id: `TPL-${action.category}-${action.angle}`,
+          category: action.category,
+          angle: action.angle,
+          version,
+          status: '启用',
+          content: action.content,
+          versions: [{ version, createdAt: at, operator: CURRENT_OPERATOR, content: action.content }],
+        };
+        return { ...state, promptTemplates: [item, ...state.promptTemplates] };
+      }
       return {
         ...state,
         promptTemplates: state.promptTemplates.map((t) => {
-          if (t.angle !== action.angle) return t;
+          if (t.category !== action.category || t.angle !== action.angle) return t;
           const version = `v${t.versions.length + 1}`;
           return {
             ...t,
@@ -292,7 +414,7 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
       return {
         ...state,
         promptTemplates: state.promptTemplates.map((t) => {
-          if (t.angle !== action.angle) return t;
+          if (t.category !== action.category || t.angle !== action.angle) return t;
           const ver = t.versions.find((v) => v.version === action.version);
           if (!ver) return t;
           return { ...t, version: ver.version, content: ver.content, status: '启用' };
@@ -307,15 +429,21 @@ function reducer(state: BuyerShowState, action: Action): BuyerShowState {
 
 interface BuyerShowContextValue extends BuyerShowState {
   currentDesigner: string;
+  currentOperator: string;
   findMain: (id: string) => MainTask | undefined;
   findSub: (id: string) => Subtask | undefined;
+  findSpu: (spu: string) => SpuMaster | undefined;
   setColor: (id: string, color: string) => void;
   setProduceMode: (id: string, produceMode: ProduceMode | undefined) => void;
-  saveQc: (id: string, images: InspectionImages) => void;
+  saveSpuQc: (spu: string, images: InspectionImages) => void;
+  confirmConsistency: (spu: string, images?: InspectionImages) => boolean;
+  revokeConsistency: (spu: string) => void;
   dispatchTasks: (ids: string[], produceMode: ProduceMode) => void;
   cancelTask: (id: string, reason: string) => void;
   claimTask: (id: string) => void;
   createSubtasks: (items: Subtask[]) => void;
+  createFreeBatch: (batch: FreeBatch, items: Subtask[]) => void;
+  completeGen: (ids: string[]) => void;
   submitSubtask: (id: string) => void;
   regenerate: (id: string) => void;
   markEditing: (id: string) => void;
@@ -330,8 +458,8 @@ interface BuyerShowContextValue extends BuyerShowState {
   saveRemark: (id: string, remark: string) => void;
   toggleMaterial: (id: string) => void;
   addMaterial: (item: Material) => void;
-  saveTemplate: (angle: Angle, content: string) => void;
-  enableTemplate: (angle: Angle, version: string) => void;
+  saveTemplate: (category: string, angle: Angle, content: string) => void;
+  enableTemplate: (category: string, angle: Angle, version: string) => void;
   addColor: (item: ColorDictionary) => void;
 }
 
@@ -344,15 +472,27 @@ export function BuyerShowProvider({ children }: { children: ReactNode }) {
     () => ({
       ...state,
       currentDesigner: CURRENT_DESIGNER,
+      currentOperator: CURRENT_OPERATOR,
       findMain: (id) => state.mainTasks.find((t) => t.id === id),
       findSub: (id) => state.subtasks.find((s) => s.id === id),
+      findSpu: (spu) => state.spus.find((s) => s.spu === spu),
       setColor: (id, color) => dispatch({ type: 'SET_COLOR', id, color }),
       setProduceMode: (id, produceMode) => dispatch({ type: 'SET_PRODUCE_MODE', id, produceMode }),
-      saveQc: (id, images) => dispatch({ type: 'SAVE_QC', id, images }),
+      saveSpuQc: (spu, images) => dispatch({ type: 'SAVE_SPU_QC', spu, images, operator: CURRENT_OPERATOR }),
+      confirmConsistency: (spu, images) => {
+        const master = state.spus.find((s) => s.spu === spu);
+        const nextImages = images ?? master?.qcImages;
+        if (!master || !canConfirmConsistency(nextImages)) return false;
+        dispatch({ type: 'CONFIRM_CONSISTENCY', spu, operator: CURRENT_OPERATOR, images: nextImages });
+        return true;
+      },
+      revokeConsistency: (spu) => dispatch({ type: 'REVOKE_CONSISTENCY', spu, operator: CURRENT_OPERATOR }),
       dispatchTasks: (ids, produceMode) => dispatch({ type: 'DISPATCH', ids, produceMode }),
       cancelTask: (id, reason) => dispatch({ type: 'CANCEL', id, reason }),
       claimTask: (id) => dispatch({ type: 'CLAIM', id, designer: CURRENT_DESIGNER }),
       createSubtasks: (items) => dispatch({ type: 'CREATE_SUBTASKS', items }),
+      createFreeBatch: (batch, items) => dispatch({ type: 'CREATE_FREE_BATCH', batch, items }),
+      completeGen: (ids) => dispatch({ type: 'COMPLETE_GEN', ids }),
       submitSubtask: (id) => dispatch({ type: 'SUBMIT_SUBTASK', id }),
       regenerate: (id) => dispatch({ type: 'REGENERATE', id }),
       markEditing: (id) => dispatch({ type: 'MARK_EDITING', id }),
@@ -367,8 +507,8 @@ export function BuyerShowProvider({ children }: { children: ReactNode }) {
       saveRemark: (id, remark) => dispatch({ type: 'SAVE_REMARK', id, remark }),
       toggleMaterial: (id) => dispatch({ type: 'TOGGLE_MATERIAL', id }),
       addMaterial: (item) => dispatch({ type: 'ADD_MATERIAL', item }),
-      saveTemplate: (angle, content) => dispatch({ type: 'SAVE_TEMPLATE', angle, content }),
-      enableTemplate: (angle, version) => dispatch({ type: 'ENABLE_TEMPLATE', angle, version }),
+      saveTemplate: (category, angle, content) => dispatch({ type: 'SAVE_TEMPLATE', category, angle, content }),
+      enableTemplate: (category, angle, version) => dispatch({ type: 'ENABLE_TEMPLATE', category, angle, version }),
       addColor: (item) => dispatch({ type: 'ADD_COLOR', item }),
     }),
     [state],

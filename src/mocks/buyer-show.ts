@@ -1,5 +1,6 @@
 import type {
   ColorDictionary,
+  ConsistencyStatus,
   CrowdTag,
   DashboardSnapshot,
   Image1Source,
@@ -12,11 +13,13 @@ import type {
   ProduceMode,
   ProductImages,
   PromptTemplate,
+  SpuMaster,
   Subtask,
   SubtaskStatus,
   UnmatchedRecord,
 } from '@/types/buyer-show';
-import { deriveColorMatchStatus, formatColorSlot } from '@/utils/buyer-show';
+import { CATEGORIES } from '@/constants/buyer-show';
+import { deriveColorMatchStatus, formatColorSlot, snapshotFromSpu } from '@/utils/buyer-show';
 
 function qcImages(slots: Partial<Record<'正面' | '侧面' | '背面' | '半身', boolean>>): InspectionImages {
   const images: InspectionImages = {};
@@ -58,20 +61,27 @@ interface SeedMain {
 }
 
 function toMain(seed: SeedMain): MainTask {
-  const inspectionImages = qcImages(seed.qc);
+  const master = mockSpus.find((s) => s.spu === seed.spu);
+  const inspectionImages = master?.qcImages ?? qcImages(seed.qc);
+  const pending = seed.status === '待分发';
+  const snap = master && !pending ? snapshotFromSpu(master) : undefined;
   return {
     id: seed.id,
     lingjianTaskId: seed.id.replace('BS-', 'LJ-'),
     spu: seed.spu,
-    spuName: seed.spuName,
-    category: seed.category,
-    material: seed.material,
+    spuName: master?.spuName ?? seed.spuName,
+    category: master?.category ?? seed.category,
+    material: master?.material ?? seed.material,
     requiredCount: seed.requiredCount,
     completedCount: seed.completedCount,
     color: seed.color,
-    inspectionImages,
-    inspectionImageStatus: qcStatus(inspectionImages),
-    productImages: seed.productImages,
+    inspectionImages: snap?.inspectionImages ?? inspectionImages,
+    inspectionImageStatus: snap?.inspectionImageStatus ?? (master?.qcStatus ?? qcStatus(inspectionImages)),
+    qcImagesSnapshot: snap?.qcImagesSnapshot,
+    consistencyStatus: snap?.consistencyStatus,
+    consistencyConfirmedBy: snap?.consistencyConfirmedBy,
+    consistencyConfirmedAt: snap?.consistencyConfirmedAt,
+    productImages: master?.productImages ?? seed.productImages,
     produceMode: seed.produceMode,
     status: seed.status,
     assignee: seed.assignee,
@@ -87,6 +97,304 @@ function toMain(seed: SeedMain): MainTask {
 }
 
 const allProduct: ProductImages = { 主图: true, 正面: true, 侧面: true, 背面: true, 半身: true };
+
+interface SeedSpu {
+  spu: string;
+  spuName: string;
+  category: string;
+  material: string;
+  sales30d: number;
+  qc: Partial<Record<'正面' | '侧面' | '背面' | '半身', boolean>>;
+  productImages: ProductImages;
+  consistencyStatus: ConsistencyStatus;
+  consistencyConfirmedBy?: string;
+  consistencyConfirmedAt?: string;
+  updatedAt: string;
+  updatedBy: string;
+}
+
+function toSpu(seed: SeedSpu): SpuMaster {
+  const images = qcImages(seed.qc);
+  return {
+    spu: seed.spu,
+    spuName: seed.spuName,
+    coverImage: `cover-${seed.spu}`,
+    category: seed.category,
+    material: seed.material,
+    productImages: seed.productImages,
+    sales30d: seed.sales30d,
+    qcImages: images,
+    qcStatus: qcStatus(images),
+    consistencyStatus: seed.consistencyStatus,
+    consistencyConfirmedBy: seed.consistencyConfirmedBy,
+    consistencyConfirmedAt: seed.consistencyConfirmedAt,
+    updatedAt: seed.updatedAt,
+    updatedBy: seed.updatedBy,
+  };
+}
+
+export const mockSpus: SpuMaster[] = [
+  toSpu({
+    spu: 'SPU-1008801',
+    spuName: '真丝吊带长裙',
+    category: '连衣裙',
+    material: '真丝',
+    sales30d: 520,
+    qc: {},
+    productImages: allProduct,
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-01 10:00:00',
+    updatedBy: '系统',
+  }),
+  toSpu({
+    spu: 'SPU-1008601',
+    spuName: '醋酸缎面吊带连衣裙',
+    category: '连衣裙',
+    material: '醋酸缎面',
+    sales30d: 480,
+    qc: {},
+    productImages: { 主图: true, 正面: true, 侧面: true, 背面: true, 半身: false },
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-08 09:12:00',
+    updatedBy: '系统',
+  }),
+  toSpu({
+    spu: 'SPU-1008802',
+    spuName: '羊绒大衣',
+    category: '外套',
+    material: '羊绒',
+    sales30d: 410,
+    qc: { 正面: true, 侧面: true, 背面: true },
+    productImages: allProduct,
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-07 18:20:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008602',
+    spuName: '羊毛双面呢大衣',
+    category: '外套',
+    material: '羊毛呢',
+    sales30d: 390,
+    qc: { 正面: true, 侧面: true },
+    productImages: allProduct,
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-08 09:20:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008805',
+    spuName: '亚麻阔腿裤',
+    category: '裤子',
+    material: '亚麻',
+    sales30d: 360,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-09-06 14:00:00',
+    updatedAt: '2026-09-06 14:00:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008610',
+    spuName: '亚麻宽松衬衫',
+    category: '衬衫',
+    material: '亚麻',
+    sales30d: 280,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-09-07 15:40:00',
+    updatedAt: '2026-09-07 15:40:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008630',
+    spuName: '碎花茶歇连衣裙',
+    category: '连衣裙',
+    material: '棉',
+    sales30d: 250,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-09-05 09:30:00',
+    updatedAt: '2026-09-05 09:30:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008640',
+    spuName: '牛仔短外套',
+    category: '外套',
+    material: '牛仔',
+    sales30d: 220,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-09-04 09:20:00',
+    updatedAt: '2026-09-04 09:20:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008620',
+    spuName: '高腰直筒西裤',
+    category: '裤子',
+    material: '西装料',
+    sales30d: 185,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-09-06 10:20:00',
+    updatedAt: '2026-09-06 10:20:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008650',
+    spuName: '雪纺衬衫裙',
+    category: '连衣裙',
+    material: '雪纺',
+    sales30d: 160,
+    qc: { 正面: true, 侧面: true, 背面: false, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-03 09:40:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008611',
+    spuName: '真丝垂感半身裙',
+    category: '半身裙',
+    material: '真丝',
+    sales30d: 145,
+    qc: { 正面: true },
+    productImages: { 主图: true, 正面: true, 侧面: true, 背面: false, 半身: false },
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-07 11:10:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008660',
+    spuName: '西装阔腿裤',
+    category: '裤子',
+    material: '西装料',
+    sales30d: 120,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-09-02 10:30:00',
+    updatedAt: '2026-09-02 10:30:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008670',
+    spuName: '皮革机车外套',
+    category: '外套',
+    material: '皮革',
+    sales30d: 105,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-09-01 09:40:00',
+    updatedAt: '2026-09-01 09:40:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008621',
+    spuName: '针织开衫外套',
+    category: '外套',
+    material: '羊毛针织',
+    sales30d: 95,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-06 15:10:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008680',
+    spuName: '棉质衬衫',
+    category: '衬衫',
+    material: '棉',
+    sales30d: 80,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-08-30 09:30:00',
+    updatedAt: '2026-08-30 09:30:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008804',
+    spuName: '格纹半身裙',
+    category: '半身裙',
+    material: '羊毛',
+    sales30d: 75,
+    qc: { 正面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '未确认',
+    updatedAt: '2026-09-04 16:00:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008690',
+    spuName: '百褶半身裙',
+    category: '半身裙',
+    material: '雪纺',
+    sales30d: 70,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-08-28 09:20:00',
+    updatedAt: '2026-08-28 09:20:00',
+    updatedBy: '张运营',
+  }),
+  toSpu({
+    spu: 'SPU-1008700',
+    spuName: '运动休闲裤',
+    category: '裤子',
+    material: '棉混纺',
+    sales30d: 55,
+    qc: {},
+    productImages: allProduct,
+    consistencyStatus: '未确认',
+    updatedAt: '2026-08-27 09:00:00',
+    updatedBy: '系统',
+  }),
+  toSpu({
+    spu: 'SPU-1008710',
+    spuName: '印花衬衫',
+    category: '衬衫',
+    material: '棉',
+    sales30d: 42,
+    qc: {},
+    productImages: { 主图: true, 正面: true, 侧面: true, 背面: false, 半身: false },
+    consistencyStatus: '未确认',
+    updatedAt: '2026-08-26 09:00:00',
+    updatedBy: '系统',
+  }),
+  toSpu({
+    spu: 'SPU-1008803',
+    spuName: '基础白衬衫',
+    category: '衬衫',
+    material: '棉',
+    sales30d: 28,
+    qc: { 正面: true, 侧面: true, 背面: true, 半身: true },
+    productImages: allProduct,
+    consistencyStatus: '已确认',
+    consistencyConfirmedBy: '张运营',
+    consistencyConfirmedAt: '2026-08-20 11:00:00',
+    updatedAt: '2026-08-20 11:00:00',
+    updatedBy: '张运营',
+  }),
+];
 
 export const mockMainTasks: MainTask[] = [
   toMain({
@@ -966,23 +1274,23 @@ const seedSubs: SeedSub[] = [
 export const mockSubtasks: Subtask[] = seedSubs.map((s) => toSub(s, mockMainTasks));
 
 export const mockMaterials: Material[] = [
-  { id: 'MAT-连衣裙-正面-户外-01', url: 'mat-1', category: '连衣裙', angle: '正面', scene: '户外草坪', crowdTag: '单人', status: '启用', usageCount: 86 },
-  { id: 'MAT-连衣裙-正面-花园-01', url: 'mat-2', category: '连衣裙', angle: '正面', scene: '花园', crowdTag: '单人', status: '启用', usageCount: 42 },
-  { id: 'MAT-连衣裙-侧面-花园-01', url: 'mat-3', category: '连衣裙', angle: '侧面', scene: '花园', crowdTag: '单人', status: '启用', usageCount: 21 },
+  { id: 'MAT-连衣裙-正面-户外-01', url: 'mat-1', category: '连衣裙', angle: '正面', scene: '户外草坪', crowdTag: '户外', status: '启用', usageCount: 86 },
+  { id: 'MAT-连衣裙-正面-花园-01', url: 'mat-2', category: '连衣裙', angle: '正面', scene: '花园', crowdTag: '花园', status: '启用', usageCount: 42 },
+  { id: 'MAT-连衣裙-正面-单人-01', url: 'mat-13', category: '连衣裙', angle: '正面', scene: '棚拍', crowdTag: '单人', status: '启用', usageCount: 28 },
+  { id: 'MAT-连衣裙-侧面-花园-01', url: 'mat-3', category: '连衣裙', angle: '侧面', scene: '花园', crowdTag: '花园', status: '启用', usageCount: 21 },
   { id: 'MAT-连衣裙-背面-花园-02', url: 'mat-4', category: '连衣裙', angle: '背面', scene: '花园', crowdTag: '多人', status: '启用', usageCount: 9 },
   { id: 'MAT-连衣裙-背面-花园-03', url: 'mat-5', category: '连衣裙', angle: '背面', scene: '花园', crowdTag: '多人', status: '启用', usageCount: 4 },
   { id: 'MAT-连衣裙-半身-花园-01', url: 'mat-6', category: '连衣裙', angle: '半身', scene: '花园', crowdTag: '单人', status: '启用', usageCount: 15 },
-  { id: 'MAT-外套-正面-街拍-01', url: 'mat-7', category: '外套', angle: '正面', scene: '街拍', crowdTag: '单人', status: '启用', usageCount: 63 },
-  { id: 'MAT-外套-侧面-街拍-01', url: 'mat-8', category: '外套', angle: '侧面', scene: '街拍', crowdTag: '单人', status: '启用', usageCount: 18 },
-  { id: 'MAT-外套-背面-街拍-01', url: 'mat-9', category: '外套', angle: '背面', scene: '街拍', crowdTag: '单人', status: '停用', usageCount: 7 },
-  { id: 'MAT-裤子-正面-室内-01', url: 'mat-10', category: '裤子', angle: '正面', scene: '室内极简', crowdTag: '单人', status: '启用', usageCount: 31 },
-  { id: 'MAT-衬衫-正面-工作室-01', url: 'mat-11', category: '衬衫', angle: '正面', scene: '工作室', crowdTag: '单人', status: '启用', usageCount: 12 },
-  { id: 'MAT-半身裙-正面-公园-01', url: 'mat-12', category: '半身裙', angle: '正面', scene: '公园', crowdTag: '单人', status: '启用', usageCount: 2 },
+  { id: 'MAT-外套-正面-街拍-01', url: 'mat-7', category: '外套', angle: '正面', scene: '街拍', crowdTag: '街拍', status: '启用', usageCount: 63 },
+  { id: 'MAT-外套-侧面-街拍-01', url: 'mat-8', category: '外套', angle: '侧面', scene: '街拍', crowdTag: '街拍', status: '启用', usageCount: 18 },
+  { id: 'MAT-外套-背面-街拍-01', url: 'mat-9', category: '外套', angle: '背面', scene: '街拍', crowdTag: '街拍', status: '停用', usageCount: 7 },
+  { id: 'MAT-裤子-正面-室内-01', url: 'mat-10', category: '裤子', angle: '正面', scene: '室内极简', crowdTag: '室内', status: '启用', usageCount: 31 },
+  { id: 'MAT-衬衫-正面-工作室-01', url: 'mat-11', category: '衬衫', angle: '正面', scene: '工作室', crowdTag: '工作室', status: '启用', usageCount: 12 },
+  { id: 'MAT-半身裙-正面-公园-01', url: 'mat-12', category: '半身裙', angle: '正面', scene: '公园', crowdTag: '公园', status: '启用', usageCount: 2 },
 ];
 
-export const mockPromptTemplates: PromptTemplate[] = [
+const anglePromptPacks: Omit<PromptTemplate, 'id' | 'category'>[] = [
   {
-    id: 'TPL-FRONT',
     angle: '正面',
     version: 'v3',
     status: '启用',
@@ -1001,7 +1309,6 @@ export const mockPromptTemplates: PromptTemplate[] = [
     ],
   },
   {
-    id: 'TPL-SIDE',
     angle: '侧面',
     version: 'v2',
     status: '启用',
@@ -1019,7 +1326,6 @@ export const mockPromptTemplates: PromptTemplate[] = [
     ],
   },
   {
-    id: 'TPL-BACK',
     angle: '背面',
     version: 'v2',
     status: '启用',
@@ -1037,7 +1343,6 @@ export const mockPromptTemplates: PromptTemplate[] = [
     ],
   },
   {
-    id: 'TPL-HALF',
     angle: '半身',
     version: 'v1',
     status: '启用',
@@ -1052,6 +1357,14 @@ export const mockPromptTemplates: PromptTemplate[] = [
     ],
   },
 ];
+
+export const mockPromptTemplates: PromptTemplate[] = CATEGORIES.flatMap((category) =>
+  anglePromptPacks.map((pack) => ({
+    ...pack,
+    id: `TPL-${category}-${pack.angle}`,
+    category,
+  })),
+);
 
 export const mockMaterialDictionaries: MaterialDictionary[] = [
   { id: 'FAB-01', name: '真丝', description: '真丝光泽、轻薄垂坠' },

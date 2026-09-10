@@ -36,6 +36,11 @@ export const PRODUCE_MODES: ProduceMode[] = ['批量制作', '单个制作'];
 
 export const QC_STATUSES = ['未配置', '已配置', '部分配置'] as const;
 
+export const CONSISTENCY_STATUSES = ['未确认', '已确认'] as const;
+
+/** 快捷筛「高销」阈值（近 30 天销量，mock 口径） */
+export const HIGH_SALES_THRESHOLD = 200;
+
 export const DESIGNERS = ['付新玲', '李梦', '王可'] as const;
 
 export const CATEGORIES = ['连衣裙', '外套', '衬衫', '半身裙', '裤子'] as const;

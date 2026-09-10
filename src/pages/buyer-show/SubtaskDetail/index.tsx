@@ -6,7 +6,7 @@ import { PromptEditor } from '@/components/PromptEditor';
 import { StatusTag } from '@/components/StatusTag';
 import { useRole } from '@/contexts/RoleContext';
 import { useBuyerShow } from '@/store/buyerShow';
-import { colorMatchDisplay, image1Kind } from '@/utils/buyer-show';
+import { colorMatchDisplay, image1Kind, isFreeBatchSub } from '@/utils/buyer-show';
 import shared from '../shared.module.css';
 import styles from './index.module.css';
 
@@ -20,7 +20,9 @@ export default function SubtaskDetail() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [remark, setRemark] = useState(sub?.remark ?? '');
 
-  if (!sub || !main) {
+  const free = sub ? isFreeBatchSub(sub) : false;
+
+  if (!sub || (!main && !free)) {
     return (
       <div className={shared.page}>
         <Empty description={`未找到子任务 ${id ?? ''}`} />
@@ -33,17 +35,28 @@ export default function SubtaskDetail() {
     message.success(msg);
   };
 
+  const regen = () => {
+    store.regenerate(sub.id);
+    if (free) window.setTimeout(() => store.completeGen([sub.id]), 800);
+  };
+
   const ops = () => {
     if (!isDesigner) return <span style={{ color: 'rgba(0,0,0,0.45)' }}>当前角色仅可查看</span>;
     const st = sub.status;
     if (st === '待提交审核' || st === '审核失败') {
       return (
         <Space>
-          <Button onClick={() => act(() => store.regenerate(sub.id), '状态已更新为【生图中】')}>重新生成</Button>
-          <Button onClick={() => act(() => store.markEditing(sub.id), '状态已更新为【修改中】')}>标记修改中</Button>
-          <Button type="primary" onClick={() => act(() => store.submitSubtask(sub.id), '已提交审核')}>
-            提交审核
-          </Button>
+          <Button onClick={() => act(regen, '状态已更新为【生图中】')}>重新生成</Button>
+          {!free ? <Button onClick={() => act(() => store.markEditing(sub.id), '状态已更新为【修改中】')}>标记修改中</Button> : null}
+          {free ? (
+            <Button type="primary" onClick={() => message.success('已下载该张结果（演示）')}>
+              下载结果
+            </Button>
+          ) : (
+            <Button type="primary" onClick={() => act(() => store.submitSubtask(sub.id), '已提交审核')}>
+              提交审核
+            </Button>
+          )}
         </Space>
       );
     }
@@ -57,10 +70,18 @@ export default function SubtaskDetail() {
     if (st === '生图失败') {
       return (
         <Space>
-          <Button type="primary" onClick={() => act(() => store.retry(sub.id), '状态已更新为【生图中】')}>
+          <Button
+            type="primary"
+            onClick={() =>
+              act(() => {
+                store.retry(sub.id);
+                if (free) window.setTimeout(() => store.completeGen([sub.id]), 800);
+              }, '状态已更新为【生图中】')
+            }
+          >
             重试
           </Button>
-          <Button onClick={() => act(() => store.regenerate(sub.id), '状态已更新为【生图中】')}>重新生成</Button>
+          <Button onClick={() => act(regen, '状态已更新为【生图中】')}>重新生成</Button>
         </Space>
       );
     }
@@ -76,15 +97,15 @@ export default function SubtaskDetail() {
       <Card size="small" className={shared.card}>
         <Descriptions size="small" column={4}>
           <Descriptions.Item label="子任务编号">{sub.id}</Descriptions.Item>
-          <Descriptions.Item label="主任务编号">{main.id}</Descriptions.Item>
-          <Descriptions.Item label="SPU">{main.spu}</Descriptions.Item>
+          <Descriptions.Item label="主任务编号">{free ? sub.batchId || '自由批量' : main?.id}</Descriptions.Item>
+          <Descriptions.Item label="SPU">{sub.spu || main?.spu}</Descriptions.Item>
           <Descriptions.Item label="颜色">{sub.color}</Descriptions.Item>
           <Descriptions.Item label="色值匹配">
             <StatusTag value={colorMatchDisplay(sub.colorMatchStatus, sub.prompt)} />
           </Descriptions.Item>
           <Descriptions.Item label="角度">{sub.angle}</Descriptions.Item>
           <Descriptions.Item label="标签">{sub.crowdTag}</Descriptions.Item>
-          <Descriptions.Item label="制作方式">{main.produceMode}</Descriptions.Item>
+          <Descriptions.Item label="制作方式">{free ? '自由批量生图' : main?.produceMode}</Descriptions.Item>
           <Descriptions.Item label="状态">
             <StatusTag value={sub.status} />
           </Descriptions.Item>
@@ -105,27 +126,34 @@ export default function SubtaskDetail() {
             <div className={shared.refRow}>
               <div className={shared.refItem}>
                 <ImagePlaceholder label="图1" kind={image1Kind(sub.image1.source)} size="md" source={sub.image1.source} />
-                <div className={shared.cap}>图1 · {sub.image1.source}</div>
+                <div className={shared.cap}>图1 · {free ? '商品图' : sub.image1.source}</div>
               </div>
               <div className={shared.refItem}>
-                <ImagePlaceholder label={sub.image2.materialId || '无图2'} kind="mat" size="md" />
+                <ImagePlaceholder label={sub.image2.materialId || (free ? '无参考图' : '无图2')} kind="mat" size="md" />
                 <div className={shared.cap}>
-                  图2 · 素材 ID
+                  {free ? '图2 · 参考图' : '图2 · 素材 ID'}
                   <br />
                   {sub.image2.materialId || '—'}
                 </div>
               </div>
               <div className={shared.refItem}>
-                <ImagePlaceholder label={sub.image3?.materialId || '无图3'} kind="mat" size="md" />
+                <ImagePlaceholder label={sub.image3?.url || (free ? '无质检图' : '无图3')} kind={free ? 'qc' : 'mat'} size="md" />
                 <div className={shared.cap}>
-                  图3 · 素材 ID
+                  {free ? '图3 · 质检图' : '图3 · 素材 ID'}
                   <br />
-                  {sub.image3?.materialId || '—'}
-                  <br />
-                  {sub.crowdTag}
-                  {sub.sceneTag ? ` / ${sub.sceneTag}` : ''}
+                  {sub.image3?.url || sub.image3?.materialId || '—'}
                 </div>
               </div>
+              {free ? (
+                <div className={shared.refItem}>
+                  <ImagePlaceholder label={sub.image4?.url || '无其他'} kind="mat" size="md" />
+                  <div className={shared.cap}>
+                    图4 · 其他
+                    <br />
+                    {sub.image4?.url || '—'}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </Card>
           <Card size="small" className={shared.card}>

@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Typography, message } from 'antd';
+import { Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Typography, Upload, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ImagePlaceholder } from '@/components/ImagePlaceholder';
+import { LibraryTagSelect } from '@/components/LibraryTagSelect';
 import { MaterialPicker } from '@/components/MaterialPicker';
+import { ConsistencyTag } from '@/components/ConsistencyTag';
+import { QcCoverageTag } from '@/components/QcImageEditor';
 import { StatusTag } from '@/components/StatusTag';
 import { ANGLES } from '@/constants/buyer-show';
 import { useRole } from '@/contexts/RoleContext';
@@ -15,10 +18,12 @@ import {
   fillPrompt,
   image1Kind,
   isEffectiveSubtask,
+  isUploadedSlot,
   matchColor,
   nextSubtaskId,
   nowLabel,
   resolveImage1,
+  resolveTaskQcView,
   subsOf,
 } from '@/utils/buyer-show';
 import shared from '../shared.module.css';
@@ -36,18 +41,16 @@ export default function ProduceSingle() {
   const [mainId, setMainId] = useState(prefer?.id ?? '');
   const current = mains.find((t) => t.id === mainId) ?? prefer;
   const children = current ? subsOf(subtasks, current.id) : [];
+  const qcView = current ? resolveTaskQcView(current, store.findSpu(current.spu)) : undefined;
   const [open, setOpen] = useState(false);
   const [form] = Form.useForm<{ color: string; angle: Angle; tag: CrowdTag; img2: string; img3?: string; prompt: string }>();
 
-  const refreshDerived = (angle?: Angle, color?: string, tag?: CrowdTag) => {
+  const refreshDerived = (angle?: Angle, color?: string) => {
     if (!current) return;
     const a = angle ?? form.getFieldValue('angle');
     const c = color ?? form.getFieldValue('color');
     const p = fillPrompt(current, a, c, promptTemplates, colorDictionaries);
     form.setFieldsValue({ prompt: p.text });
-    if (tag === '多人' || form.getFieldValue('tag') === '多人') {
-      /* keep img3 */
-    }
   };
 
   const openNew = () => {
@@ -61,7 +64,7 @@ export default function ProduceSingle() {
     form.setFieldsValue({
       color: current.color ?? '',
       angle,
-      tag: '单人',
+      tag: '',
       img2: '',
       img3: '',
       prompt: p.text,
@@ -160,7 +163,9 @@ export default function ProduceSingle() {
           {current ? (
             <span>
               需要数量 {current.requiredCount} · 已创建 {children.length} · 有效 {children.filter(isEffectiveSubtask).length}{' '}
-              <StatusTag value={current.status} /> <StatusTag value={current.produceMode} />
+              <StatusTag value={current.status} /> <StatusTag value={current.produceMode} />{' '}
+              {qcView ? <QcCoverageTag images={qcView.images} status={qcView.status} /> : null}
+              {qcView ? <ConsistencyTag status={qcView.consistencyStatus} /> : null}
             </span>
           ) : null}
           {isDesigner ? (
@@ -200,8 +205,14 @@ export default function ProduceSingle() {
               assignee: currentDesigner,
               createdAt: nowLabel(),
               image1: { url: img1?.label ?? '', source: img1?.source ?? '手动' },
-              image2: { url: values.img2, materialId: values.img2 },
-              image3: values.img3 ? { url: values.img3, materialId: values.img3 } : undefined,
+              image2: isUploadedSlot(values.img2)
+                ? { url: values.img2, source: '手动' }
+                : { url: values.img2, materialId: values.img2, source: '参考图' },
+              image3: values.img3
+                ? isUploadedSlot(values.img3)
+                  ? { url: values.img3, source: '手动' }
+                  : { url: values.img3, materialId: values.img3 }
+                : undefined,
               prompt: values.prompt,
               templateVersion: tpl?.ver,
               colorMatchStatus: match,
@@ -224,14 +235,40 @@ export default function ProduceSingle() {
             />
           </Form.Item>
           <Form.Item name="angle" label="角度" rules={[{ required: true }]}>
-            <Select options={ANGLES.map((a) => ({ value: a, label: a }))} onChange={(a) => refreshDerived(a)} />
-          </Form.Item>
-          <Form.Item name="tag" label="标签" rules={[{ required: true }]}>
             <Select
-              options={[
-                { value: '单人', label: '单人' },
-                { value: '多人', label: '多人' },
-              ]}
+              options={ANGLES.map((a) => ({ value: a, label: a }))}
+              onChange={(a) => {
+                refreshDerived(a);
+                const img2 = form.getFieldValue('img2') as string | undefined;
+                form.setFieldsValue({
+                  tag: undefined,
+                  img2: isUploadedSlot(img2) ? img2 : '',
+                  img3: isUploadedSlot(form.getFieldValue('img3')) ? form.getFieldValue('img3') : '',
+                });
+              }}
+            />
+          </Form.Item>
+          <Form.Item
+            name="tag"
+            label="标签"
+            extra="从库选图2/图3时必选；手传可不选"
+            rules={[
+              {
+                validator: (_, v) => {
+                  const img2 = form.getFieldValue('img2') as string | undefined;
+                  if (img2 && !isUploadedSlot(img2) && !v) {
+                    return Promise.reject(new Error('从库选择图2时请先选标签'));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <LibraryTagSelect
+              materials={materials}
+              category={current?.category}
+              angle={angle}
+              allowEmpty
             />
           </Form.Item>
           <Form.Item label="图1">
@@ -242,14 +279,47 @@ export default function ProduceSingle() {
               </>
             ) : null}
           </Form.Item>
-          <Form.Item name="img2" label="图2" rules={[{ required: true, message: '请选择图2' }]}>
-            <MaterialPicker materials={materials} />
+          <Form.Item name="img2" label="图2" rules={[{ required: true, message: '请选择或上传图2' }]}>
+            <MaterialPicker
+              materials={materials}
+              category={current?.category}
+              crowdTag={tag}
+              angle={angle}
+              emptyLabel="从参考图库选择"
+            />
           </Form.Item>
-          {tag === '多人' ? (
-            <Form.Item name="img3" label="图3">
-              <MaterialPicker materials={materials} />
-            </Form.Item>
-          ) : null}
+          <Upload
+            showUploadList={false}
+            beforeUpload={() => {
+              form.setFieldsValue({ img2: `已上传参考图·${angle ?? ''}` });
+              message.success('已上传图2（演示）');
+              return false;
+            }}
+          >
+            <Button type="link" size="small" style={{ marginTop: -12, marginBottom: 12 }}>
+              上传/替换图2
+            </Button>
+          </Upload>
+          <Form.Item name="img3" label="图3（选填）">
+            <MaterialPicker
+              materials={materials}
+              category={current?.category}
+              crowdTag={tag}
+              angle={angle}
+              emptyLabel="从参考图库选择"
+            />
+          </Form.Item>
+          <Upload
+            showUploadList={false}
+            beforeUpload={() => {
+              form.setFieldsValue({ img3: `已上传图3·${angle ?? ''}` });
+              return false;
+            }}
+          >
+            <Button type="link" size="small" style={{ marginTop: -12, marginBottom: 12 }}>
+              上传/替换图3
+            </Button>
+          </Upload>
           <Form.Item name="prompt" label="描述词" rules={[{ required: true, message: '请填写描述词' }]}>
             <Input.TextArea rows={6} />
           </Form.Item>

@@ -1,5 +1,7 @@
 import { useMemo, useState, type Key } from 'react';
+import { Link } from 'react-router-dom';
 import {
+  Alert,
   Button,
   Card,
   DatePicker,
@@ -16,14 +18,24 @@ import {
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import type { ColumnsType } from 'antd/es/table';
+import { ConsistencyTag } from '@/components/ConsistencyTag';
 import { ImagePlaceholder } from '@/components/ImagePlaceholder';
+import { QcCoverageTag, QcImageEditor } from '@/components/QcImageEditor';
 import { ReasonModal } from '@/components/ReasonModal';
+import { SpuQcEditDrawer } from '@/components/SpuQcEditDrawer';
 import { StatusTag } from '@/components/StatusTag';
-import { ANGLES, CATEGORIES, DESIGNERS, MAIN_STATUSES, PRODUCE_MODES, QC_STATUSES } from '@/constants/buyer-show';
+import {
+  CATEGORIES,
+  CONSISTENCY_STATUSES,
+  DESIGNERS,
+  MAIN_STATUSES,
+  PRODUCE_MODES,
+  QC_STATUSES,
+} from '@/constants/buyer-show';
 import { useRole } from '@/contexts/RoleContext';
 import { useBuyerShow } from '@/store/buyerShow';
-import type { Angle, InspectionImages, MainTask, ProduceMode } from '@/types/buyer-show';
-import { canCancel } from '@/utils/buyer-show';
+import type { MainTask, ProduceMode } from '@/types/buyer-show';
+import { canCancel, resolveTaskQcView } from '@/utils/buyer-show';
 import shared from '../shared.module.css';
 
 const { RangePicker } = DatePicker;
@@ -34,6 +46,7 @@ interface Filters {
   category?: string;
   status?: string;
   qc?: string;
+  consistency?: string;
   produceMode?: string;
   assignee?: string;
   issuedRange?: [Dayjs, Dayjs];
@@ -42,25 +55,28 @@ interface Filters {
 export default function TaskList() {
   const { role } = useRole();
   const isOps = role === '运营';
-  const { mainTasks, setColor, setProduceMode, saveQc, dispatchTasks, cancelTask } = useBuyerShow();
+  const { mainTasks, spus, findSpu, setColor, setProduceMode, dispatchTasks, cancelTask } = useBuyerShow();
   const [form] = Form.useForm<Filters>();
   const [applied, setApplied] = useState<Filters>({});
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([]);
   const [drawerId, setDrawerId] = useState<string>();
-  const [qcId, setQcId] = useState<string>();
-  const [qcDraft, setQcDraft] = useState<InspectionImages>({});
+  const [qcSpu, setQcSpu] = useState<string>();
   const [cancelId, setCancelId] = useState<string>();
   const [distOpen, setDistOpen] = useState(false);
   const [distIds, setDistIds] = useState<string[]>([]);
   const [distMode, setDistMode] = useState<ProduceMode>();
 
+  const viewOf = (t: MainTask) => resolveTaskQcView(t, findSpu(t.spu));
+
   const filtered = useMemo(() => {
     return mainTasks.filter((t) => {
+      const view = resolveTaskQcView(t, spus.find((s) => s.spu === t.spu));
       if (applied.spu && !t.spu.includes(applied.spu) && !t.spuName.includes(applied.spu)) return false;
       if (applied.id && !t.id.includes(applied.id)) return false;
       if (applied.category && t.category !== applied.category) return false;
       if (applied.status && t.status !== applied.status) return false;
-      if (applied.qc && t.inspectionImageStatus !== applied.qc) return false;
+      if (applied.qc && view.status !== applied.qc) return false;
+      if (applied.consistency && view.consistencyStatus !== applied.consistency) return false;
       if (applied.produceMode === '未指定' && t.produceMode) return false;
       if (applied.produceMode && applied.produceMode !== '未指定' && t.produceMode !== applied.produceMode) return false;
       if (applied.assignee && t.assignee !== applied.assignee) return false;
@@ -72,26 +88,37 @@ export default function TaskList() {
       }
       return true;
     });
-  }, [mainTasks, applied]);
+  }, [mainTasks, spus, applied]);
 
   const drawerTask = mainTasks.find((t) => t.id === drawerId);
+  const drawerView = drawerTask ? viewOf(drawerTask) : undefined;
+  const drawerSpu = drawerTask ? findSpu(drawerTask.spu) : undefined;
+  const editSpu = qcSpu ? findSpu(qcSpu) : undefined;
+  const editFromTask = mainTasks.find((t) => t.spu === qcSpu && t.status !== '待分发');
 
-  const openQc = (id: string) => {
-    const t = mainTasks.find((x) => x.id === id);
-    if (!t) return;
-    setQcId(id);
-    setQcDraft({ ...(t.inspectionImages ?? {}) });
-  };
+  const openQc = (spu: string) => setQcSpu(spu);
 
   const openDist = (ids: string[]) => {
-    if (!ids.length) {
-      message.warning('请先勾选主任务');
+    const pending = ids.filter((id) => mainTasks.find((t) => t.id === id)?.status === '待分发');
+    if (!pending.length) {
+      message.warning(ids.length ? '所选主任务均不可分发（仅待分发）' : '请先勾选主任务');
       return;
     }
-    setDistIds(ids);
+    setDistIds(pending);
     setDistMode(undefined);
     setDistOpen(true);
   };
+
+  const distStats = useMemo(() => {
+    const targets = distIds
+      .map((id) => mainTasks.find((t) => t.id === id))
+      .filter((t): t is MainTask => Boolean(t));
+    const views = targets.map((t) => resolveTaskQcView(t, spus.find((s) => s.spu === t.spu)));
+    return {
+      noQc: views.filter((v) => v.status === '未配置').length,
+      unconfirmed: views.filter((v) => v.consistencyStatus === '未确认').length,
+    };
+  }, [distIds, mainTasks, spus]);
 
   const columns: ColumnsType<MainTask> = [
     {
@@ -120,20 +147,34 @@ export default function TaskList() {
       width: 110,
       render: (_, t) =>
         isOps ? (
-          <Input
-            size="small"
-            value={t.color}
-            onChange={(e) => setColor(t.id, e.target.value)}
-          />
+          <Input size="small" value={t.color} onChange={(e) => setColor(t.id, e.target.value)} />
         ) : (
           t.color || '—'
         ),
     },
     {
       title: '质检图状态',
-      dataIndex: 'inspectionImageStatus',
-      width: 110,
-      render: (v: string) => <StatusTag value={v} />,
+      key: 'qc',
+      width: 160,
+      render: (_, t) => {
+        const view = viewOf(t);
+        return <QcCoverageTag images={view.images} status={view.status} />;
+      },
+    },
+    {
+      title: '实物一致性',
+      key: 'consistency',
+      width: 200,
+      render: (_, t) => {
+        const view = viewOf(t);
+        return (
+          <ConsistencyTag
+            status={view.consistencyStatus}
+            confirmedBy={view.consistencyConfirmedBy}
+            confirmedAt={view.consistencyConfirmedAt}
+          />
+        );
+      },
     },
     {
       title: '制作方式',
@@ -176,11 +217,11 @@ export default function TaskList() {
       render: (_, t) => (
         <Space size={4} wrap>
           {isOps ? (
-            <Button type="link" size="small" onClick={() => openQc(t.id)}>
+            <Button type="link" size="small" onClick={() => openQc(t.spu)}>
               配置质检图
             </Button>
           ) : null}
-          {isOps ? (
+          {isOps && t.status === '待分发' ? (
             <Button type="link" size="small" onClick={() => openDist([t.id])}>
               分发
             </Button>
@@ -206,11 +247,7 @@ export default function TaskList() {
       </Typography.Title>
 
       <Card className={shared.card} size="small">
-        <Form
-          form={form}
-          layout="inline"
-          onFinish={(v) => setApplied(v)}
-        >
+        <Form form={form} layout="inline" onFinish={(v) => setApplied(v)}>
           <Form.Item name="spu" label="SPU">
             <Input placeholder="文本" allowClear style={{ width: 140 }} />
           </Form.Item>
@@ -225,6 +262,14 @@ export default function TaskList() {
           </Form.Item>
           <Form.Item name="qc" label="质检图状态">
             <Select allowClear placeholder="全部" style={{ width: 120 }} options={QC_STATUSES.map((c) => ({ value: c, label: c }))} />
+          </Form.Item>
+          <Form.Item name="consistency" label="实物一致性">
+            <Select
+              allowClear
+              placeholder="全部"
+              style={{ width: 120 }}
+              options={CONSISTENCY_STATUSES.map((c) => ({ value: c, label: c }))}
+            />
           </Form.Item>
           <Form.Item name="produceMode" label="制作方式">
             <Select
@@ -287,7 +332,7 @@ export default function TaskList() {
           size="small"
           columns={columns}
           dataSource={filtered}
-          scroll={{ x: 2400 }}
+          scroll={{ x: 'max-content' }}
           pagination={{ pageSize: 10 }}
           rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         />
@@ -300,14 +345,22 @@ export default function TaskList() {
         onClose={() => setDrawerId(undefined)}
         extra={
           isOps && drawerTask ? (
-            <Button type="primary" onClick={() => openQc(drawerTask.id)}>
+            <Button type="primary" onClick={() => openQc(drawerTask.spu)}>
               配置质检图
             </Button>
           ) : null
         }
       >
-        {drawerTask ? (
+        {drawerTask && drawerView ? (
           <>
+            {drawerView.source === 'snapshot' ? (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 12 }}
+                message="本任务已分发，以下质检图 / 一致性为快照，不随 SPU 主数据事后变更。"
+              />
+            ) : null}
             <Typography.Title level={5}>商品图</Typography.Title>
             <div className={shared.refRow} style={{ marginBottom: 16 }}>
               {Object.entries(drawerTask.productImages)
@@ -321,73 +374,35 @@ export default function TaskList() {
               <Descriptions.Item label="SPU">{drawerTask.spu}</Descriptions.Item>
               <Descriptions.Item label="品类">{drawerTask.category}</Descriptions.Item>
               <Descriptions.Item label="材质">{drawerTask.material}</Descriptions.Item>
+              <Descriptions.Item label="近 30 天销量">{drawerSpu?.sales30d ?? '—'}</Descriptions.Item>
               <Descriptions.Item label="需要数量">{drawerTask.requiredCount}</Descriptions.Item>
               <Descriptions.Item label="颜色">{drawerTask.color || '未指定'}</Descriptions.Item>
+              <Descriptions.Item label="质检图库">
+                <Link to={`/buyer-show/qc-library?spu=${encodeURIComponent(drawerTask.spu)}`}>查看该 SPU</Link>
+              </Descriptions.Item>
             </Descriptions>
             <Typography.Title level={5}>
-              质检图配置 <StatusTag value={drawerTask.inspectionImageStatus} />
+              质检图配置 <QcCoverageTag images={drawerView.images} status={drawerView.status} />
             </Typography.Title>
-            <div className={shared.slots}>
-              {ANGLES.map((a) => (
-                <div key={a} className={`${shared.slot} ${drawerTask.inspectionImages?.[a] ? shared.slotFilled : ''}`}>
-                  <ImagePlaceholder
-                    label={drawerTask.inspectionImages?.[a] ? `质检图·${a}` : `未配置·${a}`}
-                    kind={drawerTask.inspectionImages?.[a] ? 'qc' : ''}
-                    size="fluid"
-                  />
-                  <div>{a}</div>
-                </div>
-              ))}
+            <div style={{ marginBottom: 12 }}>
+              <ConsistencyTag
+                status={drawerView.consistencyStatus}
+                confirmedBy={drawerView.consistencyConfirmedBy}
+                confirmedAt={drawerView.consistencyConfirmedAt}
+              />
             </div>
+            <QcImageEditor value={drawerView.images} readOnly />
           </>
         ) : null}
       </Drawer>
 
-      <Modal
-        title="配置质检图"
-        open={Boolean(qcId)}
-        width={820}
-        onCancel={() => setQcId(undefined)}
-        onOk={() => {
-          if (!qcId) return;
-          saveQc(qcId, qcDraft);
-          setQcId(undefined);
-          message.success(`质检图已保存，状态：${deriveLabel(qcDraft)}`);
-        }}
-      >
-        <p style={{ color: 'rgba(0,0,0,0.45)' }}>
-          按角度配置：正面、侧面、背面、半身。允许部分配置；未配置的角度在制作时按兜底规则取商品图。0 个槽位 = 未配置；4 个 = 已配置；其余 = 部分配置。
-        </p>
-        <p>
-          当前主任务：<b>{qcId}</b>
-        </p>
-        <div className={shared.slots}>
-          {ANGLES.map((a) => {
-            const filled = Boolean(qcDraft[a]);
-            return (
-              <div key={a} className={`${shared.slot} ${filled ? shared.slotFilled : ''}`}>
-                <ImagePlaceholder label={filled ? `已上传·${a}` : '点击上传/选择'} kind={filled ? 'qc' : ''} size="fluid" />
-                <div style={{ margin: '8px 0' }}>
-                  <b>{a}</b>
-                </div>
-                <Button
-                  size="small"
-                  onClick={() =>
-                    setQcDraft((prev) => {
-                      const next = { ...prev };
-                      if (next[a]) delete next[a];
-                      else next[a] = `qc-${a}`;
-                      return next;
-                    })
-                  }
-                >
-                  {filled ? '移除' : '上传/选择'}
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      </Modal>
+      <SpuQcEditDrawer
+        open={Boolean(qcSpu)}
+        spu={editSpu}
+        onClose={() => setQcSpu(undefined)}
+        readOnly={!isOps}
+        snapshotFrozen={Boolean(editFromTask)}
+      />
 
       <ReasonModal
         open={Boolean(cancelId)}
@@ -412,21 +427,36 @@ export default function TaskList() {
             message.error('制作方式必填');
             return;
           }
+          if (distStats.noQc || distStats.unconfirmed) {
+            message.warning(
+              `将分发 ${distIds.length} 条：其中 ${distStats.noQc} 条未配置质检图、${distStats.unconfirmed} 条未确认实物一致性（不拦截）`,
+            );
+          }
           dispatchTasks(distIds, distMode);
           setDistOpen(false);
-          message.success('已分发，进入【待领取】');
+          message.success('已分发，进入【待领取】，已写入质检图 / 一致性快照');
         }}
         okText="确认分发"
       >
         <p style={{ color: 'rgba(0,0,0,0.45)' }}>
-          制作方式必填。分发后主任务进入【待领取】，状态回传灵鉴。配置质检图不是分发的强制前置。
+          制作方式必填。分发后写入快照并进入【待领取】。质检图与实物一致性不是分发强制前置。
         </p>
+        {distStats.noQc || distStats.unconfirmed ? (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 12 }}
+            message={`未配置质检图 ${distStats.noQc} 条 · 未确认实物一致性 ${distStats.unconfirmed} 条，仍可分发`}
+          />
+        ) : null}
         <div style={{ marginBottom: 12 }}>
           {distIds.map((id) => {
             const t = mainTasks.find((x) => x.id === id);
+            if (!t) return null;
+            const view = viewOf(t);
             return (
               <div key={id}>
-                {t?.id} / {t?.spu} 制作方式：{t?.produceMode ?? '未指定'}
+                {t.id} / {t.spu} · 制作方式：{t.produceMode ?? '未指定'} · 质检图 {view.status} · 一致性 {view.consistencyStatus}
               </div>
             );
           })}
@@ -444,11 +474,4 @@ export default function TaskList() {
       </Modal>
     </div>
   );
-}
-
-function deriveLabel(images: InspectionImages) {
-  const n = ANGLES.filter((a) => images[a as Angle]).length;
-  if (n === 0) return '未配置';
-  if (n === 4) return '已配置';
-  return '部分配置';
 }
