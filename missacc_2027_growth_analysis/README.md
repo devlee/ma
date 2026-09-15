@@ -10,6 +10,7 @@
 |---|---|
 | `missacc_2027_march_targets_v50_v60_v70_combined.csv` | **当前生效（2026-09修订版）**。v50/v60/v70 三档合并对照表，含 3月/H1/9月 同比参照；伴娘目标客单价按 $90 换算订单 |
 | `missacc_202609_checkpoint_review.md` | **9月中期复盘**：三道门槛检验（ED双轨达标激活/MOB黄灯回撤/BD减速）、ED换图批次归因、目标修订依据与遗留事项 |
+| `missacc_ed_image_swap_effect.xlsx` | **ED换图效果专表**：批次汇总+同起点匹配检验、430款逐SPU前后对比（可筛选）、口径与批次选款策略；**每月追加当月列复核持续性** |
 | `missacc_2027_march_daily_targets_v2/v3/v4/v60pct/v70pct.csv`、`missacc_2027_march_growth_targets.csv` | 历史版本存档（v1→v4 演进过程见各文件行内说明） |
 
 **执行层——凭什么、干什么、做到什么程度：**
