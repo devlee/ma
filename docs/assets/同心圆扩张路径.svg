@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1280" height="800" viewBox="0 0 1280 800" xmlns="http://www.w3.org/2000/svg" font-family="WenQuanYi Micro Hei, Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">
+  <rect width="1280" height="800" fill="#FBF7F4"/>
+
+  <text x="60" y="58" font-size="30" font-weight="bold" fill="#3B1220">missacc 同心圆扩张路径</text>
+  <text x="60" y="90" font-size="16" fill="#8A6B75">纪律:每一环必须由上一环的用户重叠度背书,而不是"这个词搜索量大就上"</text>
+
+  <circle cx="390" cy="440" r="300" fill="#F0D9E0" stroke="#D9AEBC" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <circle cx="390" cy="440" r="228" fill="#D79BAD" stroke="#C4879B" stroke-width="1.5"/>
+  <circle cx="390" cy="440" r="156" fill="#A94F6B" stroke="#93405B" stroke-width="1.5"/>
+  <circle cx="390" cy="440" r="84" fill="#5E1B33" stroke="#471326" stroke-width="1.5"/>
+
+  <text x="390" y="428" font-size="19" font-weight="bold" fill="#FFFFFF" text-anchor="middle">第零环 · 滩头</text>
+  <text x="390" y="454" font-size="16" fill="#F5D9E2" text-anchor="middle">妈妈装存量买家</text>
+  <text x="390" y="476" font-size="13" fill="#E8BCCB" text-anchor="middle">交叉销售 · 成本≈0</text>
+
+  <text x="390" y="308" font-size="17" font-weight="bold" fill="#FFFFFF" text-anchor="middle">第一环 · 成熟女宾客拉新</text>
+  <text x="390" y="330" font-size="13" fill="#F3D3DD" text-anchor="middle">同一人群 · 新钱包 · 主战场</text>
+
+  <text x="390" y="234" font-size="17" font-weight="bold" fill="#4A1528" text-anchor="middle">第二环 · 她的其他正式场合</text>
+  <text x="390" y="256" font-size="13" fill="#6B2B42" text-anchor="middle">留客与复购 · 验证跨类目复购</text>
+
+  <text x="390" y="162" font-size="17" font-weight="bold" fill="#7A3D52" text-anchor="middle">第三环 · Prom 出资人(期权)</text>
+  <text x="390" y="184" font-size="13" fill="#9A6478" text-anchor="middle">以"妈妈的账户"切入 · 看前两环数据</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 8 3.5, 0 7" fill="#5E1B33"/>
+    </marker>
+  </defs>
+  <line x1="390" y1="440" x2="180" y2="668" stroke="#5E1B33" stroke-width="2.5" stroke-dasharray="8 6" marker-end="url(#arrow)" opacity="0.55"/>
+  <text x="150" y="700" font-size="13" fill="#7A3D52">用户重叠度</text>
+  <text x="150" y="718" font-size="13" fill="#7A3D52">逐环递减</text>
+
+  <g>
+    <rect x="760" y="120" width="460" height="128" rx="10" fill="#FFFFFF" stroke="#E3CDD5" stroke-width="1.5"/>
+    <rect x="760" y="120" width="8" height="128" rx="4" fill="#5E1B33"/>
+    <text x="788" y="150" font-size="17" font-weight="bold" fill="#3B1220">第零环 · 妈妈装存量买家(现在就做)</text>
+    <text x="788" y="178" font-size="14" fill="#5C4650">动作:CRM + retargeting 交叉销售 evening / gala / formal guest</text>
+    <text x="788" y="202" font-size="14" fill="#5C4650">优势:已有信任、已留尺码数据,全市场最便宜的新类目首购</text>
+    <text x="788" y="226" font-size="14" fill="#8A6B75">角色:整个战略的第一块试金石</text>
+  </g>
+
+  <g>
+    <rect x="760" y="268" width="460" height="128" rx="10" fill="#FFFFFF" stroke="#E3CDD5" stroke-width="1.5"/>
+    <rect x="760" y="268" width="8" height="128" rx="4" fill="#A94F6B"/>
+    <text x="788" y="298" font-size="17" font-weight="bold" fill="#3B1220">第一环 · 成熟女宾客拉新(主战场)</text>
+    <text x="788" y="326" font-size="14" fill="#5C4650">词群:guest dresses over 40/50 · mother of the groom</text>
+    <text x="788" y="350" font-size="14" fill="#5C4650">卡位:black tie / formal 正式端,不碰休闲端(Lulus 混战区)</text>
+    <text x="788" y="374" font-size="14" fill="#8A6B75">角色:同一人群的新钱包,承接飞轮带来的口碑流量</text>
+  </g>
+
+  <g>
+    <rect x="760" y="416" width="460" height="128" rx="10" fill="#FFFFFF" stroke="#E3CDD5" stroke-width="1.5"/>
+    <rect x="760" y="416" width="8" height="128" rx="4" fill="#D79BAD"/>
+    <text x="788" y="446" font-size="17" font-weight="bold" fill="#3B1220">第二环 · 她的其他正式场合(留客)</text>
+    <text x="788" y="474" font-size="14" fill="#5C4650">场景:gala · 年会 · 邮轮 formal night · 孩子的毕业典礼</text>
+    <text x="788" y="498" font-size="14" fill="#5C4650">方式:CRM / 站内推荐 / 季节性战术收割(填婚礼淡季)</text>
+    <text x="788" y="522" font-size="14" fill="#8A6B75">验证:跨类目复购 = "occasion 平台"成立的唯一硬证据</text>
+  </g>
+
+  <g>
+    <rect x="760" y="564" width="460" height="128" rx="10" fill="#FFFFFF" stroke="#E3CDD5" stroke-width="1.5"/>
+    <rect x="760" y="564" width="8" height="128" rx="4" fill="#F0D9E0"/>
+    <text x="788" y="594" font-size="17" font-weight="bold" fill="#3B1220">第三环 · Prom 出资人(期权,后期)</text>
+    <text x="788" y="622" font-size="14" fill="#5C4650">逻辑:她是女儿 prom dress 的出资人和决策参与者</text>
+    <text x="788" y="646" font-size="14" fill="#5C4650">姿态:以"妈妈的账户"切入年轻场合,不以年轻品牌姿态</text>
+    <text x="788" y="670" font-size="14" fill="#8A6B75">触发:前两环数据达标后再决策</text>
+  </g>
+
+  <rect x="60" y="738" width="1160" height="44" rx="22" fill="#5E1B33"/>
+  <text x="640" y="766" font-size="16" fill="#FFFFFF" text-anchor="middle">角色分工:婚礼 = 获客场景(70–80% 拉新预算的唯一主入口)  |  其他 formal occasion = 留客场景(CRM + 季节收割,不承担独立获客)</text>
+</svg>

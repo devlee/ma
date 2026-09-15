@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1280" height="820" viewBox="0 0 1280 820" xmlns="http://www.w3.org/2000/svg" font-family="WenQuanYi Micro Hei, Noto Sans CJK SC, PingFang SC, Microsoft YaHei, sans-serif">
+  <rect width="1280" height="820" fill="#FBF7F4"/>
+
+  <text x="60" y="56" font-size="30" font-weight="bold" fill="#3B1220">妈妈装订单的口碑漏斗:五个漏点,五个装置</text>
+  <text x="60" y="88" font-size="16" fill="#8A6B75">一条妈妈装订单的自然口碑路径,今天在 missacc 全程裸奔——每环漏 60–80%,乘起来几乎归零;机制化 = 在每个漏点装一个装置</text>
+
+  <defs>
+    <marker id="farrow" markerWidth="12" markerHeight="12" refX="8" refY="4" orient="auto">
+      <polygon points="0 0, 9 4, 0 8" fill="#B78794"/>
+    </marker>
+  </defs>
+
+  <!-- funnel stages: 5 chevrons, decreasing height -->
+  <!-- stage widths 210, gap 20, start x=60, center y=250 -->
+
+  <!-- stage 1 曝光 -->
+  <polygon points="60,150 250,150 280,250 250,350 60,350 90,250" fill="#5E1B33"/>
+  <text x="170" y="235" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">曝光</text>
+  <text x="170" y="264" font-size="13" fill="#F0CEDA" text-anchor="middle">她穿着裙子</text>
+  <text x="170" y="284" font-size="13" fill="#F0CEDA" text-anchor="middle">出席婚礼</text>
+
+  <!-- stage 2 对话 -->
+  <polygon points="300,162 490,162 520,250 490,338 300,338 330,250" fill="#7B2E49"/>
+  <text x="410" y="235" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">对话</text>
+  <text x="410" y="264" font-size="13" fill="#F0CEDA" text-anchor="middle">同龄女宾客问</text>
+  <text x="410" y="284" font-size="13" fill="#F0CEDA" text-anchor="middle">"哪买的"</text>
+
+  <!-- stage 3 检索 -->
+  <polygon points="540,174 730,174 760,250 730,326 540,326 570,250" fill="#A94F6B"/>
+  <text x="650" y="235" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">检索</text>
+  <text x="650" y="264" font-size="13" fill="#F7E0E8" text-anchor="middle">记住品牌名</text>
+  <text x="650" y="284" font-size="13" fill="#F7E0E8" text-anchor="middle">事后搜索</text>
+
+  <!-- stage 4 转化 -->
+  <polygon points="780,186 970,186 1000,250 970,314 780,314 810,250" fill="#C4778E"/>
+  <text x="890" y="235" font-size="20" font-weight="bold" fill="#FFFFFF" text-anchor="middle">转化</text>
+  <text x="890" y="264" font-size="13" fill="#FBEDF1" text-anchor="middle">搜到并被页面</text>
+  <text x="890" y="284" font-size="13" fill="#FBEDF1" text-anchor="middle">说服下单</text>
+
+  <!-- stage 5 归因 -->
+  <polygon points="1020,198 1190,198 1220,250 1190,302 1020,302 1050,250" fill="#DCA4B4"/>
+  <text x="1120" y="235" font-size="20" font-weight="bold" fill="#4A1528" text-anchor="middle">归因</text>
+  <text x="1120" y="264" font-size="13" fill="#5E2B3E" text-anchor="middle">知道这一单</text>
+  <text x="1120" y="284" font-size="13" fill="#5E2B3E" text-anchor="middle">是口碑带来的</text>
+
+  <!-- leak row -->
+  <text x="60" y="410" font-size="17" font-weight="bold" fill="#B03A2E">今天的漏点(现状:全程裸奔)</text>
+
+  <g font-size="13.5" fill="#8A4A42">
+    <rect x="60" y="428" width="220" height="76" rx="8" fill="#FDEBE8" stroke="#EFC4BC"/>
+    <text x="74" y="454">曝光靠运气:那天的照片</text>
+    <text x="74" y="476">没人收集,婚礼结束</text>
+    <text x="74" y="498">素材即消失</text>
+
+    <rect x="300" y="428" width="220" height="76" rx="8" fill="#FDEBE8" stroke="#EFC4BC"/>
+    <text x="314" y="454">对话不留痕:她口头</text>
+    <text x="314" y="476">回答一次,没有任何</text>
+    <text x="314" y="498">可传递的载体</text>
+
+    <rect x="540" y="428" width="220" height="76" rx="8" fill="#FDEBE8" stroke="#EFC4BC"/>
+    <text x="554" y="454">品牌名转身就忘:</text>
+    <text x="554" y="476">场外阵地(The Knot、</text>
+    <text x="554" y="498">FB群组)无占位</text>
+
+    <rect x="780" y="428" width="220" height="76" rx="8" fill="#FDEBE8" stroke="#EFC4BC"/>
+    <text x="794" y="454">落地页没为"被种草</text>
+    <text x="794" y="476">的人"设计:无真实</text>
+    <text x="794" y="498">买家秀、无故事页</text>
+
+    <rect x="1020" y="428" width="200" height="76" rx="8" fill="#FDEBE8" stroke="#EFC4BC"/>
+    <text x="1034" y="454">归因为零:完全</text>
+    <text x="1034" y="476">不知道口碑贡献,</text>
+    <text x="1034" y="498">无法投资决策</text>
+  </g>
+
+  <!-- device row -->
+  <text x="60" y="556" font-size="17" font-weight="bold" fill="#1E6B4F">机制化的装置(每个漏点装一个)</text>
+
+  <g font-size="13.5" fill="#2E5C4A">
+    <rect x="60" y="574" width="220" height="120" rx="8" fill="#E8F4EE" stroke="#BDDECE"/>
+    <text x="74" y="600" font-weight="bold" fill="#1E6B4F">① 返图引擎</text>
+    <text x="74" y="624">event date 数据脊柱;</text>
+    <text x="74" y="646">婚后5–10天邀约摄影师</text>
+    <text x="74" y="668">精修图;激励=可转赠礼</text>
+    <text x="74" y="690">卡+荣誉+实物</text>
+
+    <rect x="300" y="574" width="220" height="120" rx="8" fill="#E8F4EE" stroke="#BDDECE"/>
+    <text x="314" y="600" font-weight="bold" fill="#1E6B4F">② 三个传播接口</text>
+    <text x="314" y="624">friend pass(社交货币);</text>
+    <text x="314" y="646">MOB–MOG 协调卡;</text>
+    <text x="314" y="668">女儿分享链——一单</text>
+    <text x="314" y="690">至少捕获两个人</text>
+
+    <rect x="540" y="574" width="220" height="120" rx="8" fill="#E8F4EE" stroke="#BDDECE"/>
+    <text x="554" y="600" font-weight="bold" fill="#1E6B4F">③ 生态占位</text>
+    <text x="554" y="624">The Knot / WeddingWire</text>
+    <text x="554" y="646">资料页与评价;FB 群组</text>
+    <text x="554" y="668">有用内容;摄影师/策划</text>
+    <text x="554" y="690">师署名合作</text>
+
+    <rect x="780" y="574" width="220" height="120" rx="8" fill="#E8F4EE" stroke="#BDDECE"/>
+    <text x="794" y="600" font-weight="bold" fill="#1E6B4F">④ Real Weddings 体系</text>
+    <text x="794" y="624">PDP 按尺码/年龄筛真实</text>
+    <text x="794" y="646">买家秀;每周2–4篇故事</text>
+    <text x="794" y="668">页吃长尾词;返图回流</text>
+    <text x="794" y="690">Meta 素材库</text>
+
+    <rect x="1020" y="574" width="200" height="120" rx="8" fill="#E8F4EE" stroke="#BDDECE"/>
+    <text x="1034" y="600" font-weight="bold" fill="#1E6B4F">⑤ 归因仪表盘</text>
+    <text x="1034" y="624">购后调研;event date</text>
+    <text x="1034" y="646">时间标尺;品牌词弹性;</text>
+    <text x="1034" y="668">北极星:每100单带来</text>
+    <text x="1034" y="690">的可归因新客数</text>
+  </g>
+
+  <!-- bottom strip -->
+  <rect x="60" y="732" width="1160" height="46" rx="23" fill="#5E1B33"/>
+  <text x="640" y="761" font-size="16" fill="#FFFFFF" text-anchor="middle">目标:让 missacc 的每一条妈妈装订单,像 Azazie 的每一单伴娘裙一样,在那场婚礼上完成一次自我分发</text>
+</svg>
