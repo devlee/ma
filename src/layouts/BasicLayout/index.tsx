@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Layout, Menu, Segmented, Typography } from 'antd';
 import type { MenuProps } from 'antd';
+import { SystemSwitcher } from '@/components/SystemSwitcher';
 import { APP_ROLES, useRole, type AppRole } from '@/contexts/RoleContext';
 import { DEFAULT_SUBTASK_ID } from '@/constants/buyer-show';
 import styles from './index.module.css';
@@ -9,7 +10,7 @@ const { Header, Sider, Content } = Layout;
 
 const sampleSubtaskId = DEFAULT_SUBTASK_ID;
 
-function buildMenuItems(role: AppRole, isOps: boolean, isLead: boolean): MenuProps['items'] {
+function buildMenuItems(isOps: boolean, isLead: boolean): MenuProps['items'] {
   const items: MenuProps['items'] = [];
   if (isOps) {
     items.push({ key: '/buyer-show/qc-library', label: 'SPU 质检图库' });
@@ -58,7 +59,7 @@ export function BasicLayout() {
           mode="inline"
           selectedKeys={[resolveSelectedKey(location.pathname)]}
           defaultOpenKeys={['produce']}
-          items={buildMenuItems(role, isOps, isLead)}
+          items={buildMenuItems(isOps, isLead)}
           onClick={({ key }) => {
             if (key.startsWith('/')) {
               navigate(key);
@@ -68,6 +69,7 @@ export function BasicLayout() {
       </Sider>
       <Layout>
         <Header className={styles.header}>
+          <SystemSwitcher current="buyer-show" />
           <Typography.Text type="secondary">当前角色</Typography.Text>
           <Segmented<AppRole> size="small" value={role} options={APP_ROLES} onChange={setRole} />
           <Typography.Text type="secondary">{actor}</Typography.Text>

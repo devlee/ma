@@ -51,7 +51,7 @@ export default function Config() {
 
 function MaterialTab({ isOps }: { isOps: boolean }) {
   const store = useBuyerShow();
-  const [tagCat, setTagCat] = useState(CATEGORIES[0]);
+  const [tagCat, setTagCat] = useState<string>(CATEGORIES[0]);
   const [tagOpen, setTagOpen] = useState(false);
   const [cat, setCat] = useState('');
   const [tag, setTag] = useState('');
