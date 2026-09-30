@@ -16,7 +16,7 @@ const PORTRAIT_PANELS = [
   '新品健康',
   '素材完备度与新鲜度',
   '营销效率',
-  '服务与交付护栏',
+  '服务与交付红线',
 ];
 
 function Placeholder({ reserved }: { reserved?: boolean }) {

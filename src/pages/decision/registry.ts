@@ -53,8 +53,8 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     sections: [
       { title: '北极星进度', demo: 'target-vs-actual' },
       { title: '结构', demo: 'target-vs-actual' },
-      { title: '护栏总览', demo: 'target-vs-actual' },
-      { title: '领先指标', demo: 'target-vs-actual' },
+      { title: '红线总览', demo: 'target-vs-actual' },
+      { title: '先行指标', demo: 'target-vs-actual' },
     ],
   },
   {
@@ -270,7 +270,7 @@ export const DECISION_PAGES: DecisionPageDef[] = [
   {
     id: 'leading-report',
     path: 'assets/leading-indicators',
-    title: '领先指标填报',
+    title: '先行指标填报',
     board: '资产',
     sourceDoc: '战略目标层需求 · 第 6.3 节',
     roles: ['板块填报Owner', '管理层', '管理员'],
@@ -294,7 +294,7 @@ export const DECISION_PAGES: DecisionPageDef[] = [
   },
 ];
 
-/** 侧栏顺序：1.1 六板块 + 1.2 补入页面（领先指标填报、年度规划、节点实例、SPU 360） */
+/** 侧栏顺序：1.1 六板块 + 1.2 补入页面（先行指标填报、年度规划、节点实例、SPU 360） */
 export const MENU_BY_BOARD: Record<DecisionBoard, string[]> = {
   总盘: ['overview', 'annual-plan', 'hypotheses'],
   规划: ['planning-table', 'node-calendar', 'node-detail', 'playbooks', 'capacity'],
