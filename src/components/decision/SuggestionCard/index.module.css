@@ -1,0 +1,50 @@
+.card {
+  margin-bottom: 12px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.object {
+  color: #1677ff;
+  font-weight: 600;
+}
+
+.object:hover {
+  color: #4096ff;
+}
+
+.objectId {
+  margin-left: 8px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+}
+
+.evidenceRow {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px 1fr;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+}
