@@ -28,9 +28,9 @@ export const DECISION_ROLES: DecisionRole[] = [
 export const DISABLED_DECISION_ROLES: ReadonlySet<DecisionRole> = new Set(['品类负责人']);
 
 /** 一级导航六板块（《全局信息架构》1.1） */
-export type DecisionBoard = '总盘' | '规划' | '品类' | '工作台' | '资产' | '配置中心';
+export type DecisionBoard = '总盘' | '蓝图' | '品类' | '工作台' | '资产' | '配置中心';
 
-export const DECISION_BOARDS: DecisionBoard[] = ['总盘', '规划', '品类', '工作台', '资产', '配置中心'];
+export const DECISION_BOARDS: DecisionBoard[] = ['总盘', '蓝图', '品类', '工作台', '资产', '配置中心'];
 
 /** 大类：静态归类（《战略目标层》2 / 5.3） */
 export type MajorCategory = '衣服' | '鞋子+ACC';
