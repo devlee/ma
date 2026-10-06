@@ -5,7 +5,14 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { SystemSwitcher } from '@/components/SystemSwitcher';
 import { useDecisionRole } from '@/contexts/DecisionRoleContext';
 import { DECISION_PAGES, MENU_BY_BOARD, decisionHref, getDecisionPage, type DecisionPageDef } from '@/pages/decision/registry';
-import { DISABLED_DECISION_ROLES, DECISION_BOARDS, DECISION_ROLES, type DecisionBoard, type DecisionRole } from '@/types/decision';
+import {
+  DISABLED_DECISION_ROLES,
+  DECISION_BOARDS,
+  DECISION_ROLES,
+  RESERVED_DOMAIN_BOARDS,
+  type DecisionBoard,
+  type DecisionRole,
+} from '@/types/decision';
 import styles from './index.module.css';
 
 const { Header, Sider, Content } = Layout;
@@ -37,32 +44,43 @@ function hrefFromMenuKey(key: string) {
   return sep >= 0 ? key.slice(sep + 2) : key;
 }
 
-function buildMenuItems(): MenuProps['items'] {
-  return DECISION_BOARDS.map((board) => {
-    const pages = MENU_BY_BOARD[board]
-      .map((id) => getDecisionPage(id))
-      .filter((page): page is DecisionPageDef => {
-        if (!page) return false;
-        return page.navVisible ?? true;
-      });
+/** 预留域板块：只占导航位（《灵策总纲》10.1） */
+const RESERVED_BOARD_ITEMS: MenuProps['items'] = RESERVED_DOMAIN_BOARDS.map((name) => ({
+  key: `reserved::${name}`,
+  label: `${name}（预留）`,
+  disabled: true,
+}));
 
-    const onlyPage = pages[0];
-    if (pages.length === 1 && onlyPage && onlyPage.title === board) {
-      return {
-        key: menuKey(decisionHref(onlyPage), board),
-        label: board,
-      };
-    }
+function buildBoardItem(board: DecisionBoard) {
+  const pages = MENU_BY_BOARD[board]
+    .map((id) => getDecisionPage(id))
+    .filter((page): page is DecisionPageDef => {
+      if (!page) return false;
+      return page.navVisible ?? true;
+    });
 
+  const onlyPage = pages[0];
+  if (pages.length === 1 && onlyPage && onlyPage.title === board) {
     return {
-      key: `board::${board}`,
+      key: menuKey(decisionHref(onlyPage), board),
       label: board,
-      children: pages.map((page) => ({
-        key: menuKey(decisionHref(page), board),
-        label: page.title,
-      })),
     };
-  });
+  }
+
+  return {
+    key: `board::${board}`,
+    label: board,
+    children: pages.map((page) => ({
+      key: menuKey(decisionHref(page), board),
+      label: page.title,
+    })),
+  };
+}
+
+function buildMenuItems(): MenuProps['items'] {
+  const before: DecisionBoard[] = ['总盘', '蓝图', '商品'];
+  const after: DecisionBoard[] = ['工作台', '资产', '配置中心'];
+  return [...before.map(buildBoardItem), ...(RESERVED_BOARD_ITEMS ?? []), ...after.map(buildBoardItem)];
 }
 
 function selectedKeys(pathname: string) {

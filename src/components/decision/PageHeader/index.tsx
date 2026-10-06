@@ -5,7 +5,7 @@ import styles from './index.module.css';
 const BOARD_TAG_COLOR: Record<DecisionBoard, string> = {
   总盘: 'geekblue',
   蓝图: 'cyan',
-  品类: 'purple',
+  商品: 'purple',
   工作台: 'blue',
   资产: 'gold',
   配置中心: 'default',

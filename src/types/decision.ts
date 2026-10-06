@@ -27,10 +27,13 @@ export const DECISION_ROLES: DecisionRole[] = [
 
 export const DISABLED_DECISION_ROLES: ReadonlySet<DecisionRole> = new Set(['品类负责人']);
 
-/** 一级导航六板块（《全局信息架构》1.1） */
-export type DecisionBoard = '总盘' | '蓝图' | '品类' | '工作台' | '资产' | '配置中心';
+/** 一级导航实板块（《灵策总纲》10.1）；预留域板块见 RESERVED_DOMAIN_BOARDS */
+export type DecisionBoard = '总盘' | '蓝图' | '商品' | '工作台' | '资产' | '配置中心';
 
-export const DECISION_BOARDS: DecisionBoard[] = ['总盘', '蓝图', '品类', '工作台', '资产', '配置中心'];
+export const DECISION_BOARDS: DecisionBoard[] = ['总盘', '蓝图', '商品', '工作台', '资产', '配置中心'];
+
+/** 预留域板块：v1 只占导航位不建页面（《灵策总纲》10.1） */
+export const RESERVED_DOMAIN_BOARDS = ['运营', '营销', '供应链', '客服'] as const;
 
 /** 大类：静态归类（《战略目标层》2 / 5.3） */
 export type MajorCategory = '衣服' | '鞋子+ACC';
