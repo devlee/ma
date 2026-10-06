@@ -53,7 +53,7 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     sections: [
       { title: '北极星进度', demo: 'target-vs-actual' },
       { title: '结构', demo: 'target-vs-actual' },
-      { title: '红线总览', demo: 'target-vs-actual' },
+      { title: '护栏红线总览', demo: 'target-vs-actual' },
       { title: '先行指标', demo: 'target-vs-actual' },
     ],
   },

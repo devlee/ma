@@ -140,7 +140,7 @@ export const mockSuggestions: Suggestion[] = [
 export const mockDailyAlerts: DailyAlert[] = [
   {
     id: 'alert-guardrail-1',
-    kind: '红线触线',
+    kind: '护栏红线触线',
     title: '客诉率触线 · 连衣裙',
     detail: '全站客诉率 1.4%，超过红线 1.2%；连衣裙贡献最大。',
     href: '/decision/cockpit/cat-dress',
@@ -211,9 +211,9 @@ export const mockTargetVsActual: TargetVsActual[] = [
   },
   {
     id: 'tva-guardrail',
-    title: '红线总览',
+    title: '护栏红线总览',
     targetValue: '客诉率红线 1.2%',
-    targetVersion: '红线登记 v3',
+    targetVersion: '护栏红线登记 v3',
     actualValue: '客诉率 1.4%',
     actualAsOf: '2026-03-28',
     gap: '超红线 0.2 pt',

@@ -74,7 +74,7 @@ export type MetricSourceKind = '自动' | '人工填报';
 export type DiagnosisLevel = '正常' | '提示' | '预警';
 
 /** 日级预警（《全局信息架构》4） */
-export type DailyAlertKind = '红线触线' | '触发链延误';
+export type DailyAlertKind = '护栏红线触线' | '触发链延误';
 
 export interface Site {
   id: string;
