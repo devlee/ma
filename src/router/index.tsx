@@ -1,5 +1,6 @@
 import { createHashRouter, Navigate } from 'react-router-dom';
 import { BasicLayout } from '@/layouts/BasicLayout';
+import { DecisionLayout } from '@/layouts/DecisionLayout';
 import QcLibrary from '@/pages/buyer-show/QcLibrary';
 import TaskList from '@/pages/buyer-show/TaskList';
 import TaskClaim from '@/pages/buyer-show/TaskClaim';
@@ -10,6 +11,8 @@ import SubtaskDetail from '@/pages/buyer-show/SubtaskDetail';
 import Review from '@/pages/buyer-show/Review';
 import Dashboard from '@/pages/buyer-show/Dashboard';
 import Config from '@/pages/buyer-show/Config';
+import { DecisionHomeRedirect, DecisionPage } from '@/pages/decision/DecisionPage';
+import { DECISION_PAGES } from '@/pages/decision/registry';
 
 export const router = createHashRouter([
   {
@@ -28,6 +31,17 @@ export const router = createHashRouter([
       { path: 'buyer-show/review', element: <Review /> },
       { path: 'buyer-show/dashboard', element: <Dashboard /> },
       { path: 'buyer-show/config', element: <Config /> },
+    ],
+  },
+  {
+    path: '/decision',
+    element: <DecisionLayout />,
+    children: [
+      { index: true, element: <DecisionHomeRedirect /> },
+      ...DECISION_PAGES.map((page) => ({
+        path: page.path,
+        element: <DecisionPage pageId={page.id} />,
+      })),
     ],
   },
 ]);

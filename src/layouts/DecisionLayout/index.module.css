@@ -1,0 +1,57 @@
+.shell {
+  min-height: 100%;
+  height: 100%;
+}
+
+.sider {
+  border-right: 1px solid #f0f0f0;
+  overflow: auto;
+  height: 100%;
+}
+
+.brand {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  font-weight: 600;
+  font-size: 15px;
+  color: #1677ff;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 56px;
+  padding: 0 24px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  line-height: 32px;
+  overflow: visible;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 20;
+}
+
+.headerLeft,
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.roleSelect {
+  width: 180px;
+  min-width: 180px;
+}
+
+.content {
+  margin: 16px;
+  min-height: calc(100vh - 88px);
+}

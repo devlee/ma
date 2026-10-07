@@ -1,0 +1,19 @@
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.type {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #f5f5f5;
+  font-size: 12px;
+}
