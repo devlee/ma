@@ -156,9 +156,10 @@ export const DECISION_PAGES: DecisionPageDef[] = [
       { title: '画像区（八个常驻面板）', demo: 'portrait-eight' },
       { title: '诊断结论区（总评 · 系统结论 · 人工结论）', demo: 'diagnosis' },
       { title: 'AI 候选（归因草稿 · 总评起草）', reserved: true },
-      { title: '决策区' },
-      { title: '规划区', reserved: true },
+      { title: '决策区（按五类决定分组）' },
+      { title: '规划区（规划表五板块只读投影）', reserved: true },
       { title: '节点区', reserved: true },
+      { title: '款级分析抽屉（等级迁移 · 集中度款级清单 · 处置建议）', reserved: true },
     ],
   },
   {
