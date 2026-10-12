@@ -55,6 +55,7 @@ export const DECISION_PAGES: DecisionPageDef[] = [
       { title: '结构', demo: 'target-vs-actual' },
       { title: '护栏红线总览', demo: 'target-vs-actual' },
       { title: '先行指标', demo: 'target-vs-actual' },
+      { title: '诊断结论区（总盘一行 · 系统性品类结论）', reserved: true },
     ],
   },
   {
@@ -65,7 +66,13 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     extraMenuBoards: ['蓝图'],
     sourceDoc: '战略目标层需求 · 第 5 节',
     roles: ['管理层', '运营负责人', '站点Owner'],
-    sections: [{ title: '目标篇' }, { title: '结构篇' }, { title: '策略篇' }, { title: '锁定与版本' }],
+    sections: [
+      { title: '目标篇' },
+      { title: '结构篇' },
+      { title: '策略篇' },
+      { title: '站点分级（当期名册）' },
+      { title: '锁定与版本' },
+    ],
   },
   {
     id: 'hypotheses',
@@ -129,9 +136,13 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     path: 'categories',
     title: '品类列表',
     board: '商品',
-    sourceDoc: '品类驾驶舱需求 · 第 9 节',
+    sourceDoc: '品类驾驶舱需求 · 第 3.2 / 9 节',
     roles: VIEW_ROLES,
-    sections: [{ title: '按大类分组' }, { title: '梯度排序与站点过滤' }, { title: '健康状态概览' }],
+    sections: [
+      { title: '总评视图（姿态 · 主要矛盾 · 连续月数 · 规划差距）' },
+      { title: '指标视图（品类 × 面板指标组，八面板切换列组）' },
+      { title: '结论视图（结论 × 品类，系统性结论标记）' },
+    ],
   },
   {
     id: 'category-cockpit',
@@ -143,7 +154,8 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     roles: VIEW_ROLES,
     sections: [
       { title: '画像区（八个常驻面板）', demo: 'portrait-eight' },
-      { title: '诊断结论区', demo: 'diagnosis' },
+      { title: '诊断结论区（总评 · 系统结论 · 人工结论）', demo: 'diagnosis' },
+      { title: 'AI 候选（归因草稿 · 总评起草）', reserved: true },
       { title: '决策区' },
       { title: '规划区', reserved: true },
       { title: '节点区', reserved: true },
@@ -265,7 +277,12 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     board: '资产',
     sourceDoc: '战略目标层需求 · 第 6 节',
     roles: METRIC_ROLES,
-    sections: [{ title: '口径字典' }, { title: '认领登记' }, { title: '分解关系维护' }],
+    sections: [
+      { title: '口径字典' },
+      { title: '责任登记' },
+      { title: '分解关系' },
+      { title: '分摊口径（未启用）', reserved: true },
+    ],
   },
   {
     id: 'leading-report',
