@@ -70,7 +70,7 @@ export type MomDirection = 'up' | 'down' | 'flat';
 
 export type MetricSourceKind = '自动' | '人工填报';
 
-/** 诊断结论四级（《品类驾驶舱需求》5.1） */
+/** 诊断结论四级（《品类驾驶舱需求》5.2） */
 export type DiagnosisLevel = '正常' | '提示' | '预警' | '机会';
 
 /** 日级预警（《全局信息架构》4） */
