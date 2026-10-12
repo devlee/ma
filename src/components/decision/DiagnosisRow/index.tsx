@@ -7,6 +7,7 @@ const LEVEL_COLOR: Record<DiagnosisLevel, string> = {
   正常: 'success',
   提示: 'warning',
   预警: 'error',
+  机会: 'processing',
 };
 
 export interface DiagnosisRowProps {
