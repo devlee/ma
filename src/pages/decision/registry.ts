@@ -104,7 +104,7 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     board: '蓝图',
     sourceDoc: '品类规划需求 · 第 7 节',
     roles: VIEW_ROLES,
-    sections: [{ title: '年视图（52 周 × 品类）' }, { title: '触发链进度' }],
+    sections: [{ title: '年视图（52 周 × 品类 · 站点组切换）' }, { title: '旺季 / 淡季窗口与锚点' }, { title: '触发链进度' }],
   },
   {
     id: 'node-detail',
