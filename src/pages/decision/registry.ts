@@ -92,7 +92,7 @@ export const DECISION_PAGES: DecisionPageDef[] = [
     sourceDoc: '品类规划需求 · 第 4 节',
     roles: VIEW_ROLES,
     sections: [
-      { title: '站点×品类表格区（按大类分组 · 梯度排序）' },
+      { title: '站点×品类表格区（按大类分组 · 梯度排序 · 适用规则组只读引用）' },
       { title: '上新方向输入候选' },
       { title: '锁定与版本区（三道检查 · 一起锁）' },
     ],
