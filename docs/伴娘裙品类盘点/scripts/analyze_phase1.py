@@ -135,6 +135,62 @@ def main():
     )
     print(new.groupby(["coh", "SPU"])["现售价"].first().groupby("coh").median())
 
+    # 零销率 × 上架月份：累计零销、同龄零销、起量率（累计 ≥20 件）
+    section("03b 零销率与上架时长 / 上架时间点")
+    new["lm"] = new["首次上架日期"].dt.to_period("M").astype(str)
+    cum = new.groupby(["lm", "SPU"]).agg(sales=("当月销量", "sum"), age=("age", "max")).reset_index()
+    by_lm = cum.groupby("lm").agg(
+        n=("SPU", "size"),
+        age=("age", "max"),
+        zero=("sales", lambda s: round((s == 0).mean() * 100)),
+        ge20=("sales", lambda s: round((s >= 20).mean() * 100)),
+    )
+
+    def zero_within(k: int) -> pd.Series:
+        old_enough = cum[cum["age"] >= k][["lm", "SPU"]]
+        sub = new[new["age"] <= k].groupby(["lm", "SPU"])["当月销量"].sum().reset_index().merge(old_enough)
+        return sub.groupby("lm")["当月销量"].apply(lambda s: round((s == 0).mean() * 100))
+
+    by_lm["zero_age<=3"] = zero_within(3)
+    by_lm["zero_age<=5"] = zero_within(5)
+    print(by_lm[["n", "age", "zero_age<=3", "zero_age<=5", "zero", "ge20"]])
+    recent = cum[cum["lm"].isin(["2026-10", "2026-11"])]
+    older = cum[(cum["lm"] >= "2026-01") & (cum["lm"] <= "2026-08")]
+    print(f"\n2026 新品累计零销 {(cum[cum['lm'] >= '2026-01']['sales'] == 0).mean():.0%}；"
+          f"剔除 10–11 月上架 {len(recent)} 款后，1–8 月上架 {len(older)} 款零销 {(older['sales'] == 0).mean():.0%}")
+
+    # 批次选款结构对比
+    def fam(f: str) -> str:
+        f = str(f)
+        if "Chiffon" in f:
+            return "雪纺"
+        if "Stretch" in f and "Non" not in f:
+            return "弹力缎"
+        if "Satin" in f or "Charmeuse" in f:
+            return "缎"
+        return "其他"
+
+    prof = cum.set_index("SPU").join(attr[["领型(Neckline)", "面料(Fabric)", "是否有大码图"]])
+    prof["price"] = new.groupby("SPU")["现售价"].last()
+    prof["fam"] = prof["面料(Fabric)"].map(fam)
+    prof["batch"] = np.select(
+        [prof["lm"].isin(["2025-03", "2025-04"]), prof["lm"].isin(["2026-04", "2026-05"]), prof["lm"] == "2026-06"],
+        ["2025-03/04", "2026-04/05", "2026-06"], default="",
+    )
+    prof = prof[prof["batch"] != ""]
+    print("\n批次选款结构：")
+    print(
+        prof.groupby("batch").agg(
+            n=("price", "size"),
+            price_med=("price", "median"),
+            le109=("price", lambda s: round((s <= 109).mean(), 2)),
+            plus_img=("是否有大码图", lambda s: round((s == "是").mean(), 2)),
+            stretch=("fam", lambda s: round((s == "弹力缎").mean(), 2)),
+            weak_neck=("领型(Neckline)", lambda s: round(s.isin(["Square Neckline", "Halter", "Strapless"]).mean(), 2)),
+            strong_neck=("领型(Neckline)", lambda s: round(s.isin(["One-Shoulder", "Asymmetrical"]).mean(), 2)),
+        )
+    )
+
     # ---------- 04 价格 / 大码图 / 属性 ----------
     section("04 价格带 / 大码图 / 属性效率（2026 年 1–10 月在架款）")
     d26 = spu[(spu["yr"] == "2026") & (spu["ym"] <= "2026-10") & (spu["期末是否在架"] == "是")]
